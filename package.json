@@ -9,16 +9,17 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
     "ethers": "^6.12.1",
+    "openzeppelin-solidity": "OpenZeppelin/openzeppelin-contracts",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@types/node": "^20.12.10",
+    "@types/yargs": "^17.0.32",
     "forge-std": "github:foundry-rs/forge-std#v1.8.1",
     "prettier": "^3.0.0",
-    "solhint": "^3.6.2",
-    "@types/node": "^20.12.10",
-    "@types/yargs": "^17.0.32"
+    "solhint": "^3.6.2"
   },
   "keywords": [
     "blockchain",
