@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8;
+pragma solidity ^0.8.25;
 
 import { ERC20Permit, Nonces } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { ERC20Votes, ERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
-    event PausedSet(bool paused);
+    event UnpauseTimeSet(uint256 previousUnpauseTime, uint256 newUnpauseTime);
 
     error TokenPaused();
 
-    /// @notice Whether the token is paused. Can be toggled by owner.
-    bool public paused;
+    /// @notice Time at which the token becomes unpaused
+    uint256 public unpauseTime;
 
     constructor(
         string memory _name,
@@ -29,7 +29,9 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
 
     // The following functions are overrides required by Solidity.
     function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
-        if (paused) revert TokenPaused();
+        if (unpauseTime > block.timestamp && from != owner() && (to != owner() || msg.sender != owner())) {
+            revert TokenPaused();
+        }
         super._update(from, to, value);
     }
 
@@ -37,10 +39,8 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
         return super.nonces(owner);
     }
 
-    function setPaused(bool _paused) external onlyOwner {
-        if (paused == _paused) return;
-        paused = _paused;
-
-        emit PausedSet(paused);
+    function setUnpauseTime(uint256 unpauseTime_) external onlyOwner {
+        emit UnpauseTimeSet(unpauseTime, unpauseTime_);
+        unpauseTime = unpauseTime_;
     }
 }
