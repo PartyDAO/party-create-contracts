@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { PartySwapERC20 } from "./PartySwapERC20.sol";
 import { PartySwapCreatorERC721 } from "./PartySwapCreatorERC721.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAirdropper } from "./IAirdropper.sol";
 
 // TODO: Justify why this is a singleton. Concerns around all ERC20s total supply
@@ -18,22 +18,21 @@ import { IAirdropper } from "./IAirdropper.sol";
 // e.g. ragequitAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
 
 // TODO: Rename contract?
-contract PartySwapCrowdfund {
-    using SafeERC20 for IERC20;
+contract PartySwapCrowdfund is Ownable {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
 
-    event Contributed(uint32 indexed crowdfundId, address indexed contributor, string comment, uint96 ethContributed, uint96 tokensReceived, uint96 contributionFee);
-    event Ragequitted(uint32 indexed crowdfundId, address indexed contributor, uint96 tokensReceived, uint96 ethContributed, uint96 withdrawalFee);
+    event Contribute(uint32 indexed crowdfundId, address indexed contributor, string comment, uint96 ethContributed, uint96 tokensReceived, uint96 contributionFee);
+    event Ragequit(uint32 indexed crowdfundId, address indexed contributor, uint96 tokensReceived, uint96 ethContributed, uint96 withdrawalFee);
     event ContributionFeeSet(uint96 oldContributionFee, uint96 newContributionFee);
     event WithdrawalFeeBpsSet(uint16 oldWithdrawalFeeBps, uint16 newWithdrawalFeeBps);
 
+    error CrowdfundInvalid();
+
     enum CrowdfundLifecycle {
-        Invalid,
         Active,
         Finalized
     }
-
 
     enum RecipientType {
         Address,
@@ -73,7 +72,7 @@ contract PartySwapCrowdfund {
         bytes32 merkleRoot;
     }
 
-    address payable public immutable PARTY_DAO;
+    // TODO: Use interface for Dropper contract in PartyDAO/dropper-util instead
     IAirdropper public immutable AIRDROPPER;
     PartySwapCreatorERC721 public immutable CREATOR_NFT;
 
@@ -84,13 +83,13 @@ contract PartySwapCrowdfund {
     /// @dev IDs start at 1.
     mapping(uint32 => Crowdfund) public crowdfunds;
 
-    modifier onlyPartyDao() {
-        require(msg.sender == PARTY_DAO, "Only Party DAO can call this function");
-        _;
-    }
-
-    constructor (address payable partyDAO, IAirdropper airdropper, PartySwapCreatorERC721 creatorNFT, uint96 contributionFee_, uint16 withdrawalFeeBps_) {
-        PARTY_DAO = partyDAO;
+    constructor (
+        address payable partyDAO,
+        IAirdropper airdropper,
+        PartySwapCreatorERC721 creatorNFT,
+        uint96 contributionFee_,
+        uint16 withdrawalFeeBps_
+    ) Ownable(partyDAO) {
         AIRDROPPER = airdropper;
         CREATOR_NFT = creatorNFT;
         contributionFee = contributionFee_;
@@ -112,7 +111,14 @@ contract PartySwapCrowdfund {
         require(erc20Args.totalSupply >= crowdfundArgs.numTokensForLP + crowdfundArgs.numTokensForDistribution + crowdfundArgs.numTokensForRecipient, "Total supply must be at least the sum of tokens");
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
-        IERC20 token = new PartySwapERC20(erc20Args.name, erc20Args.symbol, erc20Args.image, erc20Args.description, erc20Args.totalSupply);
+        // TODO: Update salt?
+        IERC20 token = new PartySwapERC20{salt: keccak256(abi.encode(erc20Args))}(
+            erc20Args.name,
+            erc20Args.symbol,
+            erc20Args.image,
+            erc20Args.description,
+            erc20Args.totalSupply
+        );
 
         // Create new creator NFT. ID of new NFT should correspond to the ID of the crowdfund.
         id = ++numOfCrowdfunds;
@@ -144,7 +150,7 @@ contract PartySwapCrowdfund {
 
     function _getCrowdfundLifecycle(Crowdfund memory crowdfund) private pure returns (CrowdfundLifecycle) {
         if (crowdfund.targetContribution == 0) {
-            return CrowdfundLifecycle.Invalid;
+            revert CrowdfundInvalid();
         } else if (crowdfund.totalContributions >= crowdfund.targetContribution) {
             return CrowdfundLifecycle.Finalized;
         } else {
@@ -158,7 +164,7 @@ contract PartySwapCrowdfund {
         // Verify merkle proof if merkle root is set
         if (crowdfund.merkleRoot != bytes32(0)) {
             bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
-            require(MerkleProof.verify(merkleProof, crowdfund.merkleRoot, leaf), "Invalid merkle proof");
+            require(MerkleProof.verifyCalldata(merkleProof, crowdfund.merkleRoot, leaf), "Invalid merkle proof");
         }
 
         (crowdfund, tokensReceived) = _contribute(crowdfundId, crowdfund, msg.sender, msg.value.toUint96(), comment);
@@ -175,19 +181,23 @@ contract PartySwapCrowdfund {
         require(newTotalContributions <= crowdfund.targetContribution, "Contribution exceeds amount to reach target");
 
 
+        // Update state
         crowdfunds[id].totalContributions = crowdfund.totalContributions = newTotalContributions;
 
         uint96 tokensReceived = _convertETHContributedToTokensReceived(contributionAmount, crowdfund.targetContribution, crowdfund.numTokensForLP);
 
-        emit Contributed(id, contributor, comment, amount, tokensReceived, contributionFee_);
+        emit Contribute(id, contributor, comment, amount, tokensReceived, contributionFee_);
 
+        // Check if the crowdfund has reached its target and finalize if necessary
         if (_getCrowdfundLifecycle(crowdfund) == CrowdfundLifecycle.Finalized) {
             _finalize(crowdfund);
         }
 
+        // Transfer the tokens to the contributor
         crowdfund.token.transfer(contributor, tokensReceived);
 
-        payable(PARTY_DAO).call{value: contributionFee_, gas: 1e5}("");
+        // Transfer the ETH contribution fee to PartyDAO
+        payable(owner()).call{value: contributionFee_, gas: 1e5}("");
 
         return (crowdfund, tokensReceived);
     }
@@ -236,29 +246,29 @@ contract PartySwapCrowdfund {
 
         uint96 tokensReceived = uint96(crowdfund.token.balanceOf(msg.sender));
         uint96 ethContributed = _convertTokensReceivedToETHContributed(tokensReceived, crowdfund.targetContribution, crowdfund.numTokensForLP);
-        uint96 withdrawalFee = uint96(Math.mulDiv(ethContributed, withdrawalFeeBps, 1e4));
+        uint96 withdrawalFee = (ethContributed * withdrawalFeeBps) / 1e4;
 
         // Pull tokens from sender
-        crowdfund.token.safeTransferFrom(msg.sender, address(this), tokensReceived);
+        crowdfund.token.transferFrom(msg.sender, address(this), tokensReceived);
 
         // Update crowdfund state
         crowdfunds[crowdfundId].totalContributions -= ethContributed;
 
         // Transfer withdrawal fee to PartyDAO
-        payable(PARTY_DAO).call{value: withdrawalFee, gas: 1e5}("");
+        payable(owner()).call{value: withdrawalFee, gas: 1e5}("");
 
         // Transfer ETH to sender
         payable(msg.sender).call{value: ethContributed - withdrawalFee, gas: 1e5}("");
 
-        emit Ragequitted(crowdfundId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
+        emit Ragequit(crowdfundId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
     }
 
-    function setContributionFee(uint96 contributionFee_) external onlyPartyDao {
+    function setContributionFee(uint96 contributionFee_) external onlyOwner {
         emit ContributionFeeSet(contributionFee, contributionFee_);
         contributionFee = contributionFee_;
     }
 
-    function setWithdrawalFeeBps(uint16 withdrawalFeeBps_) external onlyPartyDao {
+    function setWithdrawalFeeBps(uint16 withdrawalFeeBps_) external onlyOwner {
         emit WithdrawalFeeBpsSet(withdrawalFeeBps, withdrawalFeeBps_);
         withdrawalFeeBps = withdrawalFeeBps_;
     }
