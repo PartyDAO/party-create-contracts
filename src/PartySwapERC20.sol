@@ -8,8 +8,12 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // TODO: Rename contract?
 contract PartySwapERC20 is ERC20 {
-    constructor(string memory name_, string memory symbol_, uint96 totalSupply_) ERC20(name_, symbol_) {
+    event MetadataSet(string image, string description);
+
+    constructor(string memory name_, string memory symbol_, string memory image, string memory description, uint96 totalSupply_) ERC20(name_, symbol_) {
         _mint(msg.sender, totalSupply_);
+
+        emit MetadataSet(image, description);
     }
 }
 
