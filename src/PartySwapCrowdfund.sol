@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "./PartySwapERC20.sol";
-import "./PartySwapCreatorERC721.sol";
-import "./IAirdropper.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { PartySwapERC20 } from "./PartySwapERC20.sol";
+import { PartySwapCreatorERC721 } from "./PartySwapCreatorERC721.sol";
+import { IAirdropper } from "./IAirdropper.sol";
 
 // TODO: Justify why this is a singleton. Concerns around all ERC20s total supply
 // and all ETH contributions held by one contract (honeypot)? In an L2 world,
@@ -24,7 +24,22 @@ contract PartySwapCrowdfund {
     using SafeCast for uint256;
 
     event Contributed(uint32 indexed crowdfundId, address indexed contributor, string comment, uint96 ethContributed, uint96 tokensReceived, uint96 contributionFee);
-    event Ragequit(uint32 indexed crowdfundId, address indexed contributor, uint96 tokensReceived, uint96 ethContributed, uint96 withdrawalFee);
+    event Ragequitted(uint32 indexed crowdfundId, address indexed contributor, uint96 tokensReceived, uint96 ethContributed, uint96 withdrawalFee);
+    event ContributionFeeSet(uint96 oldContributionFee, uint96 newContributionFee);
+    event WithdrawalFeeBpsSet(uint16 oldWithdrawalFeeBps, uint16 newWithdrawalFeeBps);
+
+    enum CrowdfundLifecycle {
+        Invalid,
+        Active,
+        Finalized
+    }
+
+
+    enum RecipientType {
+        Address,
+        Airdrop
+    }
+
 
     struct ERC20Args {
         string name;
@@ -32,11 +47,6 @@ contract PartySwapCrowdfund {
         string image;
         string description;
         uint96 totalSupply;
-    }
-
-    enum RecipientType {
-        Address,
-        Airdrop
     }
 
     struct CrowdfundArgs {
@@ -65,28 +75,24 @@ contract PartySwapCrowdfund {
 
     address payable public immutable PARTY_DAO;
     IAirdropper public immutable AIRDROPPER;
-
-    PartySwapCreatorERC721 public creatorNFT;
+    PartySwapCreatorERC721 public immutable CREATOR_NFT;
 
     uint32 public numOfCrowdfunds;
-    // TODO: This amount should be adjustable and applies to all crowdfunds when changed
     uint96 public contributionFee;
-    // TODO: This fee percentage should be adjustable and applies to all crowdfunds when changed
     uint16 public withdrawalFeeBps;
 
     /// @dev IDs start at 1.
     mapping(uint32 => Crowdfund) public crowdfunds;
 
-    enum CrowdfundLifecycle {
-        Invalid,
-        Active,
-        Won,
-        Finalized
+    modifier onlyPartyDao() {
+        require(msg.sender == PARTY_DAO, "Only Party DAO can call this function");
+        _;
     }
 
-    constructor (address payable partyDAO,  IAirdropper airdropper, uint96 contributionFee_, uint16 withdrawalFeeBps_) {
+    constructor (address payable partyDAO, IAirdropper airdropper, PartySwapCreatorERC721 creatorNFT, uint96 contributionFee_, uint16 withdrawalFeeBps_) {
         PARTY_DAO = partyDAO;
         AIRDROPPER = airdropper;
+        CREATOR_NFT = creatorNFT;
         contributionFee = contributionFee_;
         withdrawalFeeBps = withdrawalFeeBps_;
     }
@@ -110,7 +116,7 @@ contract PartySwapCrowdfund {
 
         // Create new creator NFT. ID of new NFT should correspond to the ID of the crowdfund.
         id = ++numOfCrowdfunds;
-        creatorNFT.mint(crowdfundArgs.creator, id);
+        CREATOR_NFT.mint(crowdfundArgs.creator, id);
 
         // Initialize new crowdfund.
         Crowdfund memory crowdfund = crowdfunds[id] = Crowdfund({
@@ -140,7 +146,7 @@ contract PartySwapCrowdfund {
         if (crowdfund.targetContribution == 0) {
             return CrowdfundLifecycle.Invalid;
         } else if (crowdfund.totalContributions >= crowdfund.targetContribution) {
-            return CrowdfundLifecycle.Won;
+            return CrowdfundLifecycle.Finalized;
         } else {
             return CrowdfundLifecycle.Active;
         }
@@ -167,6 +173,7 @@ contract PartySwapCrowdfund {
 
         uint96 newTotalContributions = crowdfund.totalContributions + contributionAmount;
         require(newTotalContributions <= crowdfund.targetContribution, "Contribution exceeds amount to reach target");
+
 
         crowdfunds[id].totalContributions = crowdfund.totalContributions = newTotalContributions;
 
@@ -243,6 +250,16 @@ contract PartySwapCrowdfund {
         // Transfer ETH to sender
         payable(msg.sender).call{value: ethContributed - withdrawalFee, gas: 1e5}("");
 
-        emit Ragequit(crowdfundId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
+        emit Ragequitted(crowdfundId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
+    }
+
+    function setContributionFee(uint96 contributionFee_) external onlyPartyDao {
+        emit ContributionFeeSet(contributionFee, contributionFee_);
+        contributionFee = contributionFee_;
+    }
+
+    function setWithdrawalFeeBps(uint16 withdrawalFeeBps_) external onlyPartyDao {
+        emit WithdrawalFeeBpsSet(withdrawalFeeBps, withdrawalFeeBps_);
+        withdrawalFeeBps = withdrawalFeeBps_;
     }
 }
