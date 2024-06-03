@@ -14,14 +14,12 @@ import "./PartySwapCreatorERC721.sol";
 // TODO: Add functions to move ETH from one token to another with one fn call?
 // e.g. ragequitAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
 
-
-// TODO: There is no duration for the crowdfund. It only ends when the goal is hit.
-
-
 // TODO: Rename contract?
 contract PartySwapCrowdfund {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
+
+    event Contributed(uint32 crowdfundId, address contributor, uint96 ethContributed, uint96 tokensReceived, string comment);
 
     struct ERC20Args {
         string name;
@@ -38,7 +36,7 @@ contract PartySwapCrowdfund {
         uint96 numTokensForDistribution;
         uint96 targetContribution;
         bytes32 merkleRoot;
-        // TODO: Should allow specifying creator address or always default to msg.sender
+        // TODO: Should allow specifying creator address or always default to msg.sender?
         address creator;
     }
 
@@ -53,19 +51,25 @@ contract PartySwapCrowdfund {
     }
 
     PartySwapCreatorERC721 public creatorNFT;
-    uint256 public numOfCrowdfunds;
+    uint32 public numOfCrowdfunds;
     // TODO: PartyDAO takes a 0.00055 ETH fee on every contribution. This amount is adjustable and applies globally.
-    uint96 public constant PARTY_DAO_FEE = 0.00055 ether;
-    uint16 public constant WITHDRAWAL_FEE_BPS = 100; // 1%
+    uint96 public partyDaoFee;
+    // TODO: PartyDAO collects a 1% fee on ETH if they withdraw. This fee percentage should be adjustable
+    uint16 public withdrawalFeeBps;
 
     /// @dev The ID of the first crowdfund ever created is 1 (not 0).
-    mapping(uint256 => Crowdfund) public crowdfunds;
+    mapping(uint32 => Crowdfund) public crowdfunds;
 
     enum CrowdfundLifecycle {
         Invalid,
         Active,
         Won,
         Finalized
+    }
+
+    constructor (uint96 partyDaoFee_, uint16 withdrawalFeeBps_) {
+        partyDaoFee = partyDaoFee_;
+        withdrawalFeeBps = withdrawalFeeBps_;
     }
 
     // STEPS:
@@ -75,10 +79,11 @@ contract PartySwapCrowdfund {
     // DETAILS:
     // - Allow creator to contribute to the crowdfund for the token upon creation.
     // - When the token is created, the creator receives an LP Fee NFT.
+    // TODO: Set ratio for ERC20s received : ETH contributed upon crowdfund creation?
     function createCrowdfund(
         ERC20Args memory erc20Args,
         CrowdfundArgs memory crowdfundArgs
-    ) external payable returns (uint256 id) {
+    ) external payable returns (uint32 id) {
         require(crowdfundArgs.targetContribution > 0, "Target contribution must be greater than zero");
         require(erc20Args.totalSupply >= crowdfundArgs.numTokensForLP + crowdfundArgs.numTokensForDistribution + crowdfundArgs.numTokensForRecipient, "Total supply must be at least the sum of tokens");
 
@@ -103,15 +108,15 @@ contract PartySwapCrowdfund {
         // Contribute initial amount, if any, attributed to the creator
         uint96 initialContribution = msg.value.toUint96();
         if (initialContribution > 0) {
-            _contribute(id, crowdfund, crowdfundArgs.creator, initialContribution);
+            _contribute(id, crowdfund, crowdfundArgs.creator, initialContribution, "");
         }
     }
 
-    function getCrowdfundLifecycle(uint256 id) public view returns (CrowdfundLifecycle) {
+    function getCrowdfundLifecycle(uint32 id) public view returns (CrowdfundLifecycle) {
         return _getCrowdfundLifecycle(crowdfunds[id]);
     }
 
-    function _getCrowdfundLifecycle(Crowdfund memory crowdfund) internal pure returns (CrowdfundLifecycle) {
+    function _getCrowdfundLifecycle(Crowdfund memory crowdfund) private pure returns (CrowdfundLifecycle) {
         if (crowdfund.targetContribution == 0) {
             return CrowdfundLifecycle.Invalid;
         } else if (crowdfund.isFinalized) {
@@ -123,16 +128,11 @@ contract PartySwapCrowdfund {
         }
     }
 
-    // TODO: The user can contribute between 1 wei and the amount remaining for the crowdfund to reach its target.
-    // TODO: The proportion of the crowdfund target that someone contributes is the proportion of tokens they receive from the allocation for crowdfund participants.
-    // TODO: Crowdfund contributions can also have comments which are emitted as an event when you contribute.
-    // TODO: Users contribute and get tokens in the same transaction
-    function contribute(uint256 id, string calldata comment, bytes32[] calldata merkleProof) public payable {
-        Crowdfund storage crowdfund = crowdfunds[id];
+    function contribute(uint32 id, string calldata comment, bytes32[] calldata merkleProof) public payable {
+        Crowdfund memory crowdfund = crowdfunds[id];
 
         require(getCrowdfundLifecycle(id) == CrowdfundLifecycle.Active, "Crowdfund is not active");
         require(msg.value > 0, "Contribution must be greater than zero");
-        require(msg.value <= crowdfund.targetContribution - crowdfund.totalContributions, "Contribution exceeds target");
 
         // Verify merkle proof if merkleRoot is set
         if (crowdfund.merkleRoot != bytes32(0)) {
@@ -140,29 +140,31 @@ contract PartySwapCrowdfund {
             require(MerkleProof.verify(merkleProof, crowdfund.merkleRoot, leaf), "Invalid merkle proof");
         }
 
-        _contribute(id, crowdfund, msg.sender, msg.value.toUint96());
+        _contribute(id, crowdfund, msg.sender, msg.value.toUint96(), comment);
     }
 
-    function _contribute(uint256 id, Crowdfund memory crowdfund, address contributor, uint96 amount) internal {
-        uint96 fee = PARTY_DAO_FEE;
-        uint96 contributionAmount = amount - fee;
+    function _contribute(uint32 id, Crowdfund memory crowdfund, address contributor, uint96 amount, string memory comment) private {
+        uint96 contributionFee = partyDaoFee;
+        uint96 contributionAmount = amount - contributionFee;
 
         uint96 newTotalContributions = crowdfund.totalContributions + contributionAmount;
         require(newTotalContributions <= crowdfund.targetContribution, "Contribution exceeds amount to reach target");
 
         crowdfunds[id].totalContributions = newTotalContributions;
 
-        // Mint ERC20 tokens to the contributor
-        _mint(crowdfund, contributor, contributionAmount);
+        uint96 tokensReceived = _convertETHContributedToTokensReceived(contributionAmount, crowdfund.targetContribution, crowdfund.numTokensForLP);
+
+        emit Contributed(id, contributor, amount, tokensReceived, comment);
 
         if (_getCrowdfundLifecycle(crowdfund) == CrowdfundLifecycle.Won) {
             _finalize(id, crowdfund);
         }
+
+        crowdfund.token.transfer(contributor, tokensReceived);
     }
 
-    function _mint(Crowdfund memory crowdfund, address to, uint256 amount) internal {
-        // Implement the minting logic here
-        // Mint non-transferable tokens to the contributor
+    function _convertETHContributedToTokensReceived(uint96 ethContributed, uint96 targetContribution, uint96 numTokensForLP) private pure returns (uint96 tokensReceived) {
+        tokensReceived = (ethContributed * numTokensForLP) / targetContribution;
     }
 
     // TODO: When the crowdfund is finalized, the contract integrates with Uniswap V3 to provide liquidity
@@ -171,7 +173,7 @@ contract PartySwapCrowdfund {
     // TODO: Fee Collector needs to be updated to be aware of LP NFT owner
     // TODO: When the LP position is created, the tokens become transferable.
     // TODO: At finalization the reserve tokens are sent to the reserve address or airdrop.
-    function _finalize(uint256 id, Crowdfund memory crowdfund) internal {
+    function _finalize(uint32 id, Crowdfund memory crowdfund) private {
         require(!crowdfund.isFinalized, "Crowdfund already is finalized");
 
         crowdfunds[id].isFinalized = true;
