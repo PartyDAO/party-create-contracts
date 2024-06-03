@@ -172,7 +172,7 @@ contract PartySwapCrowdfund is Ownable {
 
     function _contribute(uint32 id, Crowdfund memory crowdfund, address contributor, uint96 amount, string memory comment) private returns (Crowdfund memory, uint96) {
         require(_getCrowdfundLifecycle(crowdfund) == CrowdfundLifecycle.Active, "Crowdfund is not active");
-        require(msg.value > 0, "Contribution must be greater than zero");
+        require(amount > 0, "Contribution must be greater than zero");
 
         uint96 contributionFee_ = contributionFee;
         uint96 contributionAmount = amount - contributionFee_;
