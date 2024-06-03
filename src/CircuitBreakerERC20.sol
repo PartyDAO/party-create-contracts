@@ -6,12 +6,12 @@ import { ERC20Votes, ERC20 } from "@openzeppelin/contracts/token/ERC20/extension
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
-    event UnpauseTimeSet(uint256 previousUnpauseTime, uint256 newUnpauseTime);
+    event PausedSet(bool paused);
 
     error TokenPaused();
 
-    /// @notice Time at which the token becomes unpaused
-    uint256 public unpauseTime;
+    /// @notice Whether the token is paused. Can be toggled by owner.
+    bool public paused;
 
     constructor(
         string memory _name,
@@ -29,7 +29,7 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
 
     // The following functions are overrides required by Solidity.
     function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
-        if (unpauseTime > block.timestamp && from != owner() && (to != owner() || msg.sender != owner())) {
+        if (paused && from != owner() && (to != owner() || msg.sender != owner())) {
             revert TokenPaused();
         }
         super._update(from, to, value);
@@ -39,8 +39,10 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
         return super.nonces(owner);
     }
 
-    function setUnpauseTime(uint256 unpauseTime_) external onlyOwner {
-        emit UnpauseTimeSet(unpauseTime, unpauseTime_);
-        unpauseTime = unpauseTime_;
+    function setPaused(bool _paused) external onlyOwner {
+        if (paused == _paused) return;
+        paused = _paused;
+
+        emit PausedSet(paused);
     }
 }
