@@ -4,6 +4,8 @@ import { hideBin } from "yargs/helpers";
 import { ChildProcessWithoutNullStreams, exec, execSync, spawn } from "child_process";
 import { ethers } from "ethers";
 
+const CROSS_CHAIN_CREATE2_FACTORY = "0x0000000000FFe8B47B3e2130213B802212439497";
+
 yargs(hideBin(process.argv))
   .usage("$0 <cmd> [args]")
   .command(
@@ -18,14 +20,25 @@ yargs(hideBin(process.argv))
         })
         .describe("rpc", "The URL of the RPC to use for deployment")
         .describe("pk", "The private key to use for deployment")
+        .describe("salt", "The salt used at deployment. Defaults to 0")
+        .describe("explorer-api-key", "Explorer key for etherscan product on the given network")
         .array("constructor-args")
         .string("constructor-args")
         .string("pk")
         .string("rpc")
+        .string("salt")
+        .string("explorer-api-key")
         .demandOption(["rpc", "pk"]);
     },
     (argv) => {
-      runDeploy(argv.contract, argv.rpc, argv.pk, argv["constructor-args"]);
+      runDeploy(
+        argv.contract,
+        argv.rpc,
+        argv.pk,
+        argv["constructor-args"],
+        argv.salt ?? ethers.ZeroHash,
+        argv.explorerApiKey,
+      );
     },
   )
   .command(
@@ -44,7 +57,14 @@ yargs(hideBin(process.argv))
   )
   .parse();
 
-async function runDeploy(contract: string, rpcUrl: any, privateKey: any, constructorArgs: any) {
+async function runDeploy(
+  contract: string,
+  rpcUrl: string,
+  privateKey: string,
+  constructorArgs: any,
+  salt: string,
+  explorerApiKey: string | undefined,
+) {
   const contracts = getProjectContracts();
   if (!contracts.includes(contract)) {
     throw new Error(`Contract ${contract} not found in project`);
@@ -60,25 +80,41 @@ async function runDeploy(contract: string, rpcUrl: any, privateKey: any, constru
 
   const encodedConstructorArgs = encodeConstructorArgs(contract, constructorArgs);
   let newDeploy: Deploy = { deployedArgs: encodedConstructorArgs } as Deploy;
-  newDeploy.version = await getUndeployedContractVersion(contract);
+  newDeploy.version = await getUndeployedContractVersion(contract, constructorArgs);
 
   validateDeploy(contract, newDeploy, chainId);
 
   console.log("Deploying contract...");
-  const createCommand = `forge create ${contract} --private-key ${privateKey} --rpc-url ${rpcUrl} --verify ${
-    !!constructorArgs && constructorArgs.length > 0 ? "--constructor-args " + constructorArgs.join(" ") : ""
-  }`;
 
-  const out = await execSync(createCommand);
-  const lines = out.toString().split("\n");
-  for (const line of lines) {
-    if (line.startsWith("Deployed to: ")) {
-      // Get the address
-      newDeploy.address = line.split("Deployed to: ")[1];
-    }
+  const deploymentBytecode = ethers.solidityPacked(
+    ["bytes", "bytes"],
+    [
+      JSON.parse(fs.readFileSync(`out/${contract}.sol/${contract}.json`, "utf-8")).bytecode.object,
+      encodedConstructorArgs,
+    ],
+  );
+
+  const getDeterministicAddressCall = `cast call ${CROSS_CHAIN_CREATE2_FACTORY} "findCreate2Address(bytes32,bytes)" ${salt} ${deploymentBytecode} --rpc-url ${rpcUrl}`;
+  const deterministicCreateCall = `cast send ${CROSS_CHAIN_CREATE2_FACTORY} "safeCreate2(bytes32,bytes)" ${salt} ${deploymentBytecode} --rpc-url ${rpcUrl} --private-key ${privateKey}`;
+
+  const getAddrResult = (await execSync(getDeterministicAddressCall)).toString().trim();
+  const addr = ethers.AbiCoder.defaultAbiCoder().decode(["address"], getAddrResult)[0];
+  if (addr == ethers.ZeroAddress) {
+    throw new Error(`Contract ${contract} already deployed using salt ${salt} with version ${newDeploy.version}`);
   }
+  newDeploy.address = addr;
 
+  await execSync(deterministicCreateCall);
   console.log(`Contract ${contract} deployed to ${newDeploy.address} with version ${newDeploy.version}`);
+
+  if (!!explorerApiKey) {
+    const verifyCall = `forge v --rpc-url ${rpcUrl} --etherscan-api-key ${explorerApiKey!} ${
+      encodedConstructorArgs != "" ? `--constructor-args ${encodedConstructorArgs}` : ""
+    } ${newDeploy.address} ${contract}`;
+    console.log(`Verifying ${contract}`);
+    const res = await execSync(verifyCall);
+    console.log(res.toString());
+  }
 
   writeDeploy(contract, newDeploy, chainId);
 }
@@ -139,7 +175,9 @@ function validateDeploy(contract: string, deploy: Deploy, chainId: string) {
     )
   ) {
     throw new Error(
-      `Contract ${contract} with version ${deploy.version} and deployed args ${deploy.deployedArgs || "<empty>"} already deployed`,
+      `Contract ${contract} with version ${deploy.version} and deployed args ${
+        deploy.deployedArgs || "<empty>"
+      } already deployed`,
     );
   }
 }
@@ -172,6 +210,9 @@ async function launchAnvil(): Promise<ChildProcessWithoutNullStreams> {
         resolve(anvil);
       }
     });
+    anvil.stderr.on("data", function (err) {
+      throw new Error(err.toString());
+    });
   });
 }
 
@@ -180,10 +221,13 @@ async function launchAnvil(): Promise<ChildProcessWithoutNullStreams> {
  * @param contractName Name of the contract in the repo
  * @returns
  */
-async function getUndeployedContractVersion(contractName: string): Promise<string> {
+async function getUndeployedContractVersion(contractName: string, constructorArgs: any): Promise<string> {
   const anvil = await launchAnvil();
 
-  const createCommand = `forge create ${contractName} --private-key 0x78427d179c2c0f8467881bc37f9453a99854977507ca53ff65e1c875208a4a03 --rpc-url "127.0.0.1:8545"`;
+  // Private key generated from mnemonic 123
+  const createCommand = `forge create ${contractName} --private-key 0x78427d179c2c0f8467881bc37f9453a99854977507ca53ff65e1c875208a4a03 --rpc-url "127.0.0.1:8545" ${
+    !!constructorArgs && constructorArgs.length != 0 ? "--constructor-args " + constructorArgs.join(" ") : ""
+  }`;
   let addr = "";
 
   const out = await execSync(createCommand);
@@ -209,8 +253,12 @@ async function getUndeployedContractVersion(contractName: string): Promise<strin
  */
 async function getContractVersion(contractAddress: string, rpcUrl: string): Promise<string> {
   const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const versionRes = await provider.call({ to: contractAddress, data: "0xffa1ad74" /* Version function */ });
-  return ethers.AbiCoder.defaultAbiCoder().decode(["string"], versionRes)[0];
+  try {
+    const versionRes = await provider.call({ to: contractAddress, data: "0xffa1ad74" /* Version function */ });
+    return ethers.AbiCoder.defaultAbiCoder().decode(["string"], versionRes)[0];
+  } catch (err) {
+    throw new Error("Contract does not implement version function. Please implement `VERSION` in your contract");
+  }
 }
 
 function encodeConstructorArgs(contractName: string, args: string[] | undefined): string {
