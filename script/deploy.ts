@@ -108,7 +108,9 @@ async function runDeploy(
   console.log(`Contract ${contract} deployed to ${newDeploy.address} with version ${newDeploy.version}`);
 
   if (!!explorerApiKey) {
-    const verifyCall = `forge v --rpc-url ${rpcUrl} --etherscan-api-key ${explorerApiKey!} ${constructorArgs != "" ? `--constructor-args ${constructorArgs}` : ""} ${newDeploy.address} ${contract}`;
+    const verifyCall = `forge v --rpc-url ${rpcUrl} --etherscan-api-key ${explorerApiKey!} ${
+      constructorArgs != "" ? `--constructor-args ${constructorArgs}` : ""
+    } ${newDeploy.address} ${contract}`;
     console.log(`Verifying ${contract}`);
     const res = await execSync(verifyCall);
     console.log(res.toString());
@@ -173,7 +175,9 @@ function validateDeploy(contract: string, deploy: Deploy, chainId: string) {
     )
   ) {
     throw new Error(
-      `Contract ${contract} with version ${deploy.version} and deployed args ${deploy.deployedArgs || "<empty>"} already deployed`,
+      `Contract ${contract} with version ${deploy.version} and deployed args ${
+        deploy.deployedArgs || "<empty>"
+      } already deployed`,
     );
   }
 }
@@ -218,7 +222,9 @@ async function getUndeployedContractVersion(contractName: string, constructorArg
   const anvil = await launchAnvil();
 
   // Private key generated from mnemonic 123
-  const createCommand = `forge create ${contractName} --private-key 0x78427d179c2c0f8467881bc37f9453a99854977507ca53ff65e1c875208a4a03 --rpc-url "127.0.0.1:8545" ${constructorArgs != "" ? "--constructor-args " + constructorArgs : ""}`;
+  const createCommand = `forge create ${contractName} --private-key 0x78427d179c2c0f8467881bc37f9453a99854977507ca53ff65e1c875208a4a03 --rpc-url "127.0.0.1:8545" ${
+    constructorArgs != "" ? "--constructor-args " + constructorArgs : ""
+  }`;
   let addr = "";
 
   const out = await execSync(createCommand);
