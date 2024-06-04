@@ -70,11 +70,11 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
         TokenMetadata memory tokenMetadata = tokenMetadatas[tokenId];
         return string.concat(
             "data:application/json;utf8,",
-            '{"name":"',
+            "{\"name\":\"",
             tokenMetadata.name,
-            '","image":"',
+            "\",\"image\":\"",
             tokenMetadata.image,
-            '","attributes":[{"crowdfund_succeeded":',
+            "\",\"attributes\":[{\"crowdfund_succeeded\":",
             tokenMetadata.crowdfundSuccessful ? "true" : "false",
             "}]}"
         );
