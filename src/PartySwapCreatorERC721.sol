@@ -16,4 +16,12 @@ contract PartySwapCreatorERC721 is ERC721 {
     function mint(address receiver, uint256 id) public {
         _mint(receiver, id);
     }
+
+    /**
+     * @dev Returns the version of the contract. Decimal versions indicate change in logic. Number change indicates
+     * change in ABI.
+     */
+    function VERSION() external pure returns (string memory) {
+        return "0.1.0";
+    }
 }

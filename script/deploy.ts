@@ -80,7 +80,7 @@ async function runDeploy(
 
   const encodedConstructorArgs = encodeConstructorArgs(contract, constructorArgs);
   let newDeploy: Deploy = { deployedArgs: encodedConstructorArgs } as Deploy;
-  newDeploy.version = await getUndeployedContractVersion(contract, encodedConstructorArgs);
+  newDeploy.version = await getUndeployedContractVersion(contract, constructorArgs);
 
   validateDeploy(contract, newDeploy, chainId);
 
@@ -109,7 +109,7 @@ async function runDeploy(
 
   if (!!explorerApiKey) {
     const verifyCall = `forge v --rpc-url ${rpcUrl} --etherscan-api-key ${explorerApiKey!} ${
-      constructorArgs != "" ? `--constructor-args ${constructorArgs}` : ""
+      encodedConstructorArgs != "" ? `--constructor-args ${encodedConstructorArgs}` : ""
     } ${newDeploy.address} ${contract}`;
     console.log(`Verifying ${contract}`);
     const res = await execSync(verifyCall);
@@ -210,6 +210,9 @@ async function launchAnvil(): Promise<ChildProcessWithoutNullStreams> {
         resolve(anvil);
       }
     });
+    anvil.stderr.on("data", function (err) {
+      throw new Error(err.toString());
+    });
   });
 }
 
@@ -218,12 +221,12 @@ async function launchAnvil(): Promise<ChildProcessWithoutNullStreams> {
  * @param contractName Name of the contract in the repo
  * @returns
  */
-async function getUndeployedContractVersion(contractName: string, constructorArgs: string): Promise<string> {
+async function getUndeployedContractVersion(contractName: string, constructorArgs: any): Promise<string> {
   const anvil = await launchAnvil();
 
   // Private key generated from mnemonic 123
   const createCommand = `forge create ${contractName} --private-key 0x78427d179c2c0f8467881bc37f9453a99854977507ca53ff65e1c875208a4a03 --rpc-url "127.0.0.1:8545" ${
-    constructorArgs != "" ? "--constructor-args " + constructorArgs : ""
+    !!constructorArgs && constructorArgs.length != 0 ? "--constructor-args " + constructorArgs.join(" ") : ""
   }`;
   let addr = "";
 
@@ -250,8 +253,12 @@ async function getUndeployedContractVersion(contractName: string, constructorArg
  */
 async function getContractVersion(contractAddress: string, rpcUrl: string): Promise<string> {
   const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const versionRes = await provider.call({ to: contractAddress, data: "0xffa1ad74" /* Version function */ });
-  return ethers.AbiCoder.defaultAbiCoder().decode(["string"], versionRes)[0];
+  try {
+    const versionRes = await provider.call({ to: contractAddress, data: "0xffa1ad74" /* Version function */ });
+    return ethers.AbiCoder.defaultAbiCoder().decode(["string"], versionRes)[0];
+  } catch (err) {
+    throw new Error("Contract does not implement version function. Please implement `VERSION` in your contract");
+  }
 }
 
 function encodeConstructorArgs(contractName: string, args: string[] | undefined): string {
