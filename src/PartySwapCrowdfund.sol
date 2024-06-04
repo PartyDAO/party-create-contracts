@@ -141,7 +141,7 @@ contract PartySwapCrowdfund is Ownable {
         id = ++numOfCrowdfunds;
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
-        IERC20 token = new CircuitBreakerERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
+        CircuitBreakerERC20 token = new CircuitBreakerERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
             erc20Args.name,
             erc20Args.symbol,
             erc20Args.image,
@@ -150,6 +150,7 @@ contract PartySwapCrowdfund is Ownable {
             address(this),
             address(this)
         );
+        token.setPaused(true);
 
         // Create new creator NFT. ID of new NFT should correspond to the ID of the crowdfund.
         CREATOR_NFT.mint(msg.sender, id);
@@ -314,6 +315,7 @@ contract PartySwapCrowdfund is Ownable {
     // TODO: Fee Collector needs to be aware of LP NFT owner
     // TODO: The LP Fee NFT updates an attribute to indicate its been successfully upon finalization
     // TODO: When the LP position is created, the tokens become transferable.
+    // TODO: Unpause token and abdicate ownership
     function _finalize(Crowdfund memory crowdfund) private {
         // Transfer tokens to recipient
         if (crowdfund.recipientType == RecipientType.Address) {

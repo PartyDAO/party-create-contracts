@@ -22,7 +22,9 @@ contract CircuitBreakerERC20Test is Test {
                 bytes32(0),
                 abi.encodePacked(
                     type(CircuitBreakerERC20).creationCode,
-                    abi.encode("CircuitBreakerERC20", "CBK", 100_000, address(this), address(this))
+                    abi.encode(
+                        "CircuitBreakerERC20", "CBK", "MyImage", "MyDescription", 100_000, address(this), address(this)
+                    )
                 )
             )
         );

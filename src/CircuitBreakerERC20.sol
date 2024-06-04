@@ -15,21 +15,20 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
     bool public paused;
 
     constructor(
-        string memory _name,
-        string memory _symbol,
-        string memory _image,
-        string memory _description,
-        uint256 _totalSupply,
-        address _receiver,
-        address _owner
+        string memory name,
+        string memory symbol,
+        string memory image,
+        string memory description,
+        uint256 totalSupply,
+        address receiver,
+        address owner
     )
-        ERC20(_name, _symbol)
-        ERC20Permit(_name)
-        Ownable(_owner)
+        ERC20(name, symbol)
+        ERC20Permit(name)
+        Ownable(owner)
     {
-        _mint(_receiver, _totalSupply);
-
-        emit MetadataSet(_image, _description);
+        _mint(receiver, totalSupply);
+        emit MetadataSet(image, description);
     }
 
     /// @notice Only owner can transfer functions when paused. They can transfer out or call `transferFrom` to
