@@ -125,7 +125,7 @@ contract PartySwapCrowdfund is Ownable {
         token.setPaused(true);
 
         // Create new creator NFT. ID of new NFT should correspond to the ID of the crowdfund.
-        CREATOR_NFT.mint(msg.sender, id);
+        CREATOR_NFT.mint(erc20Args.name, erc20Args.image, msg.sender);
 
         // Initialize new crowdfund.
         Crowdfund memory crowdfund = crowdfunds[id] = Crowdfund({

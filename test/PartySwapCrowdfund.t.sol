@@ -15,7 +15,7 @@ contract PartySwapCrowdfundTest is Test {
 
     function setUp() public {
         partyDAO = payable(vm.createWallet("Party DAO").addr);
-        creatorNFT = new PartySwapCreatorERC721("PartySwapCreatorERC721", "PSC721");
+        creatorNFT = new PartySwapCreatorERC721("PartySwapCreatorERC721", "PSC721", address(this));
         crowdfund = new PartySwapCrowdfund(partyDAO, creatorNFT, contributionFee, withdrawalFeeBps);
     }
 
