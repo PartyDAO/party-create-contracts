@@ -11,7 +11,13 @@
       "constructorArgs": ["nft_name", "nft_symbol"]
     },
     "PartySwapCrowdfund": {
-      "deploys": [],
+      "deploys": [
+        {
+          "deployedArgs": "0x0000000000000000000000000e63d6f414b40bafca676810ef1abf05ecc8e4590000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ead87c4eaf570a51affa6180695ee23a5d935ad10000000000000000000000000000000000000000000000000001f438daa060000000000000000000000000000000000000000000000000000000000000000064",
+          "version": "0.1.0",
+          "address": "0x4e7952018ceE18f3beF242A5fE19FBE76D593175"
+        }
+      ],
       "constructorArgs": ["partyDao", "airdropper", "PartySwapCreatorERC721", "contributionFee", "withdrawalFeeBips"]
     }
   },
