@@ -1,0 +1,17 @@
+{
+  "contracts": {
+    "PartySwapCreatorERC721": { "deploys": [], "constructorArgs": ["nft_name", "nft_symbol"] },
+    "PartySwapCrowdfund": {
+      "deploys": [],
+      "constructorArgs": ["partyDao", "airdropper", "PartySwapCreatorERC721", "contributionFee", "withdrawalFeeBips"]
+    }
+  },
+  "constants": {
+    "partyDao": "0x0e63D6f414b40BaFCa676810ef1aBf05ECc8E459",
+    "airdropper": "0x0000000000000000000000000000000000000000",
+    "contributionFee": 550000000000000,
+    "withdrawalFeeBips": 100,
+    "nft_name": "PartySwapCreatorERC721",
+    "nft_symbol": "PSC721"
+  }
+}
