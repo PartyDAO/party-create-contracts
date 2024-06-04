@@ -65,6 +65,6 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
      *      change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "1.0.0";
+        return "0.1.0";
     }
 }
