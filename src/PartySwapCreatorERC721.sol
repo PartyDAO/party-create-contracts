@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8;
+pragma solidity ^0.8.25;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
@@ -9,11 +9,9 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 // TODO: The NFT is transferable
 // TODO: The NFT has an attribute that represents if the crowdfund was successful or not
 
-
 // TODO: Rename contract?
 contract PartySwapCreatorERC721 is ERC721 {
-    constructor(string memory name_, string memory symbol_) ERC721(name_, symbol_) {
-    }
+    constructor(string memory name_, string memory symbol_) ERC721(name_, symbol_) { }
 
     function mint(address receiver, uint256 id) public {
         _mint(receiver, id);

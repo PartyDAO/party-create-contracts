@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8;
+pragma solidity ^0.8.25;
 
 import "forge-std/src/Test.sol";
 
@@ -41,25 +41,24 @@ contract PartySwapCrowdfundTest is Test {
         });
 
         PartySwapCrowdfund.CrowdfundArgs memory crowdfundArgs = PartySwapCrowdfund.CrowdfundArgs({
-            recipientType: PartySwapCrowdfund.RecipientType.Address,
-            recipientData: abi.encode(recipient),
             numTokensForLP: 500_000_000e18,
             numTokensForDistribution: 300_000_000e18,
             numTokensForRecipient: 200_000_000e18,
             targetContribution: 10 ether,
             // TODO: Test with merkle root
             merkleRoot: bytes32(0),
-            creator: creator
+            recipient: recipient
         });
 
         vm.prank(creator);
-        uint32 crowdfundId = crowdfund.createCrowdfund{value: 1 ether}(erc20Args, crowdfundArgs);
+        uint32 crowdfundId = crowdfund.createCrowdfund{ value: 1 ether }(erc20Args, crowdfundArgs);
 
-        (IERC20 token, , , , uint96 totalContributions, , , ,) = crowdfund.crowdfunds(crowdfundId);
+        (IERC20 token,,,, uint96 totalContributions,,,,) = crowdfund.crowdfunds(crowdfundId);
         uint96 expectedTotalContributions;
         uint96 expectedPartyDAOBalance = contributionFee;
         {
-            uint96 expectedTokensReceived = crowdfund.convertETHContributedToTokensReceived(crowdfundId, 1 ether - contributionFee);
+            uint96 expectedTokensReceived =
+                crowdfund.convertETHContributedToTokensReceived(crowdfundId, 1 ether - contributionFee);
             expectedTotalContributions = 1 ether - contributionFee;
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
@@ -71,13 +70,14 @@ contract PartySwapCrowdfundTest is Test {
         // Step 2: Contribute to the crowdfund
         vm.deal(contributor1, 5 ether);
         vm.prank(contributor1);
-        crowdfund.contribute{value: 5 ether}(crowdfundId, "Contribution", new bytes32[](0));
+        crowdfund.contribute{ value: 5 ether }(crowdfundId, "Contribution", new bytes32[](0));
 
         expectedTotalContributions += 5 ether - contributionFee;
         expectedPartyDAOBalance += contributionFee;
         {
-            uint96 expectedTokensReceived = crowdfund.convertETHContributedToTokensReceived(crowdfundId, 5 ether - contributionFee);
-            ( , , , , totalContributions, , , ,) = crowdfund.crowdfunds(crowdfundId);
+            uint96 expectedTokensReceived =
+                crowdfund.convertETHContributedToTokensReceived(crowdfundId, 5 ether - contributionFee);
+            (,,,, totalContributions,,,,) = crowdfund.crowdfunds(crowdfundId);
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor1), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
@@ -102,7 +102,9 @@ contract PartySwapCrowdfundTest is Test {
         uint96 remainingContribution = crowdfundArgs.targetContribution - expectedTotalContributions;
         vm.deal(contributor2, remainingContribution + contributionFee);
         vm.prank(contributor2);
-        crowdfund.contribute{value: crowdfundArgs.targetContribution - expectedTotalContributions + contributionFee}(crowdfundId, "Final Contribution", new bytes32[](0));
+        crowdfund.contribute{ value: crowdfundArgs.targetContribution - expectedTotalContributions + contributionFee }(
+            crowdfundId, "Final Contribution", new bytes32[](0)
+        );
 
         expectedTotalContributions += remainingContribution;
         expectedPartyDAOBalance += contributionFee;
@@ -110,13 +112,13 @@ contract PartySwapCrowdfundTest is Test {
             PartySwapCrowdfund.CrowdfundLifecycle lifecycle = crowdfund.getCrowdfundLifecycle(crowdfundId);
             assertTrue(lifecycle == PartySwapCrowdfund.CrowdfundLifecycle.Finalized);
 
-            uint96 expectedTokensReceived = crowdfund.convertETHContributedToTokensReceived(crowdfundId, remainingContribution);
-            ( , , , , totalContributions, , , ,) = crowdfund.crowdfunds(crowdfundId);
+            uint96 expectedTokensReceived =
+                crowdfund.convertETHContributedToTokensReceived(crowdfundId, remainingContribution);
+            (,,,, totalContributions,,,,) = crowdfund.crowdfunds(crowdfundId);
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor2), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
             assertEq(token.balanceOf(recipient), crowdfundArgs.numTokensForRecipient);
         }
     }
-
 }
