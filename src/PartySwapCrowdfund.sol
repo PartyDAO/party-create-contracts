@@ -353,4 +353,12 @@ contract PartySwapCrowdfund is Ownable {
         emit WithdrawalFeeBpsSet(withdrawalFeeBps, withdrawalFeeBps_);
         withdrawalFeeBps = withdrawalFeeBps_;
     }
+
+    /**
+     * @dev Returns the version of the contract. Decimal versions indicate change in logic. Number change indicates
+     *      change in ABI.
+     */
+    function VERSION() external pure returns (string memory) {
+        return "0.1.0";
+    }
 }
