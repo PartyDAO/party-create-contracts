@@ -5,7 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { PartySwapERC20 } from "./PartySwapERC20.sol";
+import { CircuitBreakerERC20 } from "./CircuitBreakerERC20.sol";
 import { PartySwapCreatorERC721 } from "./PartySwapCreatorERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAirdropper } from "./IAirdropper.sol";
@@ -141,8 +141,14 @@ contract PartySwapCrowdfund is Ownable {
         id = ++numOfCrowdfunds;
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
-        IERC20 token = new PartySwapERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
-            erc20Args.name, erc20Args.symbol, erc20Args.image, erc20Args.description, erc20Args.totalSupply
+        IERC20 token = new CircuitBreakerERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
+            erc20Args.name,
+            erc20Args.symbol,
+            erc20Args.image,
+            erc20Args.description,
+            erc20Args.totalSupply,
+            address(this),
+            address(this)
         );
 
         // Create new creator NFT. ID of new NFT should correspond to the ID of the crowdfund.

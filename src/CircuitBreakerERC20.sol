@@ -6,6 +6,7 @@ import { ERC20Votes, ERC20 } from "@openzeppelin/contracts/token/ERC20/extension
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
+    event MetadataSet(string image, string description);
     event PausedSet(bool paused);
 
     error TokenPaused();
@@ -16,6 +17,8 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
     constructor(
         string memory _name,
         string memory _symbol,
+        string memory _image,
+        string memory _description,
         uint256 _totalSupply,
         address _receiver,
         address _owner
@@ -25,6 +28,8 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
         Ownable(_owner)
     {
         _mint(_receiver, _totalSupply);
+
+        emit MetadataSet(_image, _description);
     }
 
     /// @notice Only owner can transfer functions when paused. They can transfer out or call `transferFrom` to
