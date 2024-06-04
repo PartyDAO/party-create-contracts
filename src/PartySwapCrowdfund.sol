@@ -10,10 +10,6 @@ import { PartySwapCreatorERC721 } from "./PartySwapCreatorERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAirdropper } from "./IAirdropper.sol";
 
-// TODO: Justify why this is a singleton. Concerns around all ERC20s total supply
-// and all ETH contributions held by one contract (honeypot)? In an L2 world,
-// gas less of concern?
-
 // TODO: Add functions to move ETH from one token to another with one fn call?
 // e.g. ragequitAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
 
@@ -22,8 +18,10 @@ contract PartySwapCrowdfund is Ownable {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
 
+    event CrowdfundCreated(uint32 indexed crowdfundId, address indexed creator, IERC20 indexed token);
     event Contribute(uint32 indexed crowdfundId, address indexed contributor, string comment, uint96 ethContributed, uint96 tokensReceived, uint96 contributionFee);
     event Ragequit(uint32 indexed crowdfundId, address indexed contributor, uint96 tokensReceived, uint96 ethContributed, uint96 withdrawalFee);
+    event Finalized(uint32 indexed crowdfundId, address tokenLiquidityPool);
     event ContributionFeeSet(uint96 oldContributionFee, uint96 newContributionFee);
     event WithdrawalFeeBpsSet(uint16 oldWithdrawalFeeBps, uint16 newWithdrawalFeeBps);
 
@@ -39,7 +37,6 @@ contract PartySwapCrowdfund is Ownable {
         Airdrop
     }
 
-
     struct ERC20Args {
         string name;
         string symbol;
@@ -49,15 +46,29 @@ contract PartySwapCrowdfund is Ownable {
     }
 
     struct CrowdfundArgs {
-        RecipientType recipientType;
-        // Depending on the recipient type, this will be an address or params for the airdrop
-        bytes recipientData;
         uint96 numTokensForLP;
         uint96 numTokensForDistribution;
         uint96 numTokensForRecipient;
         uint96 targetContribution;
         bytes32 merkleRoot;
-        address creator;
+        address recipient;
+    }
+
+    struct CrowdfundWithAirdropArgs {
+        uint96 numTokensForLP;
+        uint96 numTokensForDistribution;
+        uint96 numTokensForRecipient;
+        uint96 targetContribution;
+        bytes32 merkleRoot;
+        AirdropArgs airdropArgs;
+    }
+
+    struct AirdropArgs {
+        bytes32 merkleRoot;
+        uint40 expirationTimestamp;
+        address expirationRecipient;
+        string merkleTreeURI;
+        string dropDescription;
     }
 
     struct Crowdfund {
@@ -96,13 +107,6 @@ contract PartySwapCrowdfund is Ownable {
         withdrawalFeeBps = withdrawalFeeBps_;
     }
 
-    // STEPS:
-    // 1. Create new ERC20.
-    // 2. Initialize new Crowdfund.
-
-    // DETAILS:
-    // - Allow creator to contribute to the crowdfund for the token upon creation.
-    // - When the token is created, the creator receives an LP Fee NFT.
     function createCrowdfund(
         ERC20Args memory erc20Args,
         CrowdfundArgs memory crowdfundArgs
@@ -110,9 +114,10 @@ contract PartySwapCrowdfund is Ownable {
         require(crowdfundArgs.targetContribution > 0, "Target contribution must be greater than zero");
         require(erc20Args.totalSupply >= crowdfundArgs.numTokensForLP + crowdfundArgs.numTokensForDistribution + crowdfundArgs.numTokensForRecipient, "Total supply must be at least the sum of tokens");
 
+        id = ++numOfCrowdfunds;
+
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
-        // TODO: Update salt?
-        IERC20 token = new PartySwapERC20{salt: keccak256(abi.encode(erc20Args))}(
+        IERC20 token = new PartySwapERC20{salt: keccak256(abi.encodePacked(id, block.chainid))}(
             erc20Args.name,
             erc20Args.symbol,
             erc20Args.image,
@@ -121,14 +126,13 @@ contract PartySwapCrowdfund is Ownable {
         );
 
         // Create new creator NFT. ID of new NFT should correspond to the ID of the crowdfund.
-        id = ++numOfCrowdfunds;
-        CREATOR_NFT.mint(crowdfundArgs.creator, id);
+        CREATOR_NFT.mint(msg.sender, id);
 
         // Initialize new crowdfund.
         Crowdfund memory crowdfund = crowdfunds[id] = Crowdfund({
             token: token,
-            recipientType: crowdfundArgs.recipientType,
-            recipientData: crowdfundArgs.recipientData,
+            recipientType: RecipientType.Address,
+            recipientData: abi.encode(crowdfundArgs.recipient),
             targetContribution: crowdfundArgs.targetContribution,
             totalContributions: 0,
             numTokensForLP: crowdfundArgs.numTokensForLP,
@@ -140,8 +144,10 @@ contract PartySwapCrowdfund is Ownable {
         // Contribute initial amount, if any, and attribute the contribution to the creator
         uint96 initialContribution = msg.value.toUint96();
         if (initialContribution > 0) {
-            (crowdfund, ) = _contribute(id, crowdfund, crowdfundArgs.creator, initialContribution, "");
+            (crowdfund, ) = _contribute(id, crowdfund, msg.sender, initialContribution, "");
         }
+
+        emit CrowdfundCreated(id, msg.sender, token);
     }
 
     function getCrowdfundLifecycle(uint32 crowdfundId) public view returns (CrowdfundLifecycle) {
@@ -186,7 +192,7 @@ contract PartySwapCrowdfund is Ownable {
 
         uint96 tokensReceived = _convertETHContributedToTokensReceived(contributionAmount, crowdfund.targetContribution, crowdfund.numTokensForLP);
 
-        emit Contribute(id, contributor, comment, amount, tokensReceived, contributionFee_);
+        emit Contribute(id, contributor, comment, contributionAmount, tokensReceived, contributionFee_);
 
         // Check if the crowdfund has reached its target and finalize if necessary
         if (_getCrowdfundLifecycle(crowdfund) == CrowdfundLifecycle.Finalized) {
@@ -260,7 +266,7 @@ contract PartySwapCrowdfund is Ownable {
         // Transfer ETH to sender
         payable(msg.sender).call{value: ethContributed - withdrawalFee, gas: 1e5}("");
 
-        emit Ragequit(crowdfundId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
+        emit Ragequit(crowdfundId, msg.sender, tokensReceived, ethContributed - withdrawalFee, withdrawalFee);
     }
 
     function setContributionFee(uint96 contributionFee_) external onlyOwner {
