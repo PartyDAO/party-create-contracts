@@ -55,4 +55,12 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
 
         emit PausedSet(paused);
     }
+
+    /**
+     * @dev Returns the version of the contract. Decimal versions indicate change in logic. Number change indicates
+     *      change in ABI.
+     */
+    function VERSION() external pure returns (string memory) {
+        return "1.0.0";
+    }
 }
