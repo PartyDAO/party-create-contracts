@@ -1,6 +1,15 @@
 {
   "contracts": {
-    "PartySwapCreatorERC721": { "deploys": [], "constructorArgs": ["nft_name", "nft_symbol"] },
+    "PartySwapCreatorERC721": {
+      "deploys": [
+        {
+          "deployedArgs": "0x00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000001650617274795377617043726561746f724552433732310000000000000000000000000000000000000000000000000000000000000000000000000000000000065053433732310000000000000000000000000000000000000000000000000000",
+          "version": "0.1.0",
+          "address": "0xEad87C4eAF570a51AfFA6180695ee23A5d935Ad1"
+        }
+      ],
+      "constructorArgs": ["nft_name", "nft_symbol"]
+    },
     "PartySwapCrowdfund": {
       "deploys": [],
       "constructorArgs": ["partyDao", "airdropper", "PartySwapCreatorERC721", "contributionFee", "withdrawalFeeBips"]
