@@ -121,4 +121,25 @@ contract PartySwapCrowdfundTest is Test {
             assertEq(token.balanceOf(recipient), crowdfundArgs.numTokensForRecipient);
         }
     }
+
+    function test_setContributionFee() public {
+        assertEq(crowdfund.contributionFee(), 0.00055 ether);
+
+        uint96 newContributionFee = 0.001 ether;
+        vm.prank(partyDAO);
+        crowdfund.setContributionFee(newContributionFee);
+
+        // Check updated contribution fee
+        assertEq(crowdfund.contributionFee(), newContributionFee);
+    }
+
+    function test_setWithdrawalFeeBps() public {
+        assertEq(crowdfund.withdrawalFeeBps(), 100);
+
+        uint16 newWithdrawalFeeBps = 50; // 0.5%
+        vm.prank(partyDAO);
+        crowdfund.setWithdrawalFeeBps(newWithdrawalFeeBps);
+
+        assertEq(crowdfund.withdrawalFeeBps(), newWithdrawalFeeBps);
+    }
 }
