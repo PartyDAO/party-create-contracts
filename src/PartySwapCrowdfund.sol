@@ -8,7 +8,6 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { CircuitBreakerERC20 } from "./CircuitBreakerERC20.sol";
 import { PartySwapCreatorERC721 } from "./PartySwapCreatorERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IAirdropper } from "./IAirdropper.sol";
 
 // TODO: Add functions to move ETH from one token to another with one fn call?
 // e.g. ragequitAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
@@ -45,11 +44,6 @@ contract PartySwapCrowdfund is Ownable {
         Finalized
     }
 
-    enum RecipientType {
-        Address,
-        Airdrop
-    }
-
     struct ERC20Args {
         string name;
         string symbol;
@@ -67,37 +61,17 @@ contract PartySwapCrowdfund is Ownable {
         address recipient;
     }
 
-    struct CrowdfundWithAirdropArgs {
-        uint96 numTokensForLP;
-        uint96 numTokensForDistribution;
-        uint96 numTokensForRecipient;
-        uint96 targetContribution;
-        bytes32 merkleRoot;
-        AirdropArgs airdropArgs;
-    }
-
-    struct AirdropArgs {
-        bytes32 merkleRoot;
-        uint40 expirationTimestamp;
-        address expirationRecipient;
-        string merkleTreeURI;
-        string dropDescription;
-    }
-
     struct Crowdfund {
         IERC20 token;
-        RecipientType recipientType;
-        bytes recipientData;
         uint96 targetContribution;
         uint96 totalContributions;
         uint96 numTokensForLP;
         uint96 numTokensForDistribution;
         uint96 numTokensForRecipient;
         bytes32 merkleRoot;
+        address recipient;
     }
 
-    // TODO: Use interface for Dropper contract in PartyDAO/dropper-util instead
-    IAirdropper public immutable AIRDROPPER;
     PartySwapCreatorERC721 public immutable CREATOR_NFT;
 
     uint32 public numOfCrowdfunds;
@@ -109,14 +83,12 @@ contract PartySwapCrowdfund is Ownable {
 
     constructor(
         address payable partyDAO,
-        IAirdropper airdropper,
         PartySwapCreatorERC721 creatorNFT,
         uint96 contributionFee_,
         uint16 withdrawalFeeBps_
     )
         Ownable(partyDAO)
     {
-        AIRDROPPER = airdropper;
         CREATOR_NFT = creatorNFT;
         contributionFee = contributionFee_;
         withdrawalFeeBps = withdrawalFeeBps_;
@@ -158,14 +130,13 @@ contract PartySwapCrowdfund is Ownable {
         // Initialize new crowdfund.
         Crowdfund memory crowdfund = crowdfunds[id] = Crowdfund({
             token: token,
-            recipientType: RecipientType.Address,
-            recipientData: abi.encode(crowdfundArgs.recipient),
             targetContribution: crowdfundArgs.targetContribution,
             totalContributions: 0,
             numTokensForLP: crowdfundArgs.numTokensForLP,
             numTokensForDistribution: crowdfundArgs.numTokensForDistribution,
             numTokensForRecipient: crowdfundArgs.numTokensForRecipient,
-            merkleRoot: crowdfundArgs.merkleRoot
+            merkleRoot: crowdfundArgs.merkleRoot,
+            recipient: crowdfundArgs.recipient
         });
 
         // Contribute initial amount, if any, and attribute the contribution to the creator
@@ -318,13 +289,7 @@ contract PartySwapCrowdfund is Ownable {
     // TODO: Unpause token and abdicate ownership
     function _finalize(Crowdfund memory crowdfund) private {
         // Transfer tokens to recipient
-        if (crowdfund.recipientType == RecipientType.Address) {
-            address recipient = abi.decode(crowdfund.recipientData, (address));
-            crowdfund.token.transfer(recipient, crowdfund.numTokensForRecipient);
-        } else if (crowdfund.recipientType == RecipientType.Airdrop) {
-            crowdfund.token.transfer(address(AIRDROPPER), crowdfund.numTokensForRecipient);
-            AIRDROPPER.airdrop(crowdfund.recipientData);
-        }
+        crowdfund.token.transfer(crowdfund.recipient, crowdfund.numTokensForRecipient);
     }
 
     function ragequit(uint32 crowdfundId) external {

@@ -9,19 +9,17 @@ contract PartySwapCrowdfundTest is Test {
     PartySwapCrowdfund crowdfund;
     PartySwapCreatorERC721 creatorNFT;
     address payable partyDAO;
-    IAirdropper airdropper;
 
     uint96 contributionFee = 0.00055 ether;
     uint16 withdrawalFeeBps = 100; // 1%
 
     function setUp() public {
         partyDAO = payable(vm.createWallet("Party DAO").addr);
-        airdropper = IAirdropper(vm.createWallet("Airdropper").addr);
         creatorNFT = new PartySwapCreatorERC721("PartySwapCreatorERC721", "PSC721");
-        crowdfund = new PartySwapCrowdfund(partyDAO, airdropper, creatorNFT, contributionFee, withdrawalFeeBps);
+        crowdfund = new PartySwapCrowdfund(partyDAO, creatorNFT, contributionFee, withdrawalFeeBps);
     }
 
-    function testIntegration_CrowdfundLifecycle() public {
+    function testIntegration_crowdfundLifecycle() public {
         address creator = vm.createWallet("Creator").addr;
         address recipient = vm.createWallet("Recipient").addr;
         address contributor1 = vm.createWallet("Contributor1").addr;
@@ -53,7 +51,7 @@ contract PartySwapCrowdfundTest is Test {
         vm.prank(creator);
         uint32 crowdfundId = crowdfund.createCrowdfund{ value: 1 ether }(erc20Args, crowdfundArgs);
 
-        (IERC20 token,,,, uint96 totalContributions,,,,) = crowdfund.crowdfunds(crowdfundId);
+        (IERC20 token,, uint96 totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);
         uint96 expectedTotalContributions;
         uint96 expectedPartyDAOBalance = contributionFee;
         {
@@ -77,7 +75,7 @@ contract PartySwapCrowdfundTest is Test {
         {
             uint96 expectedTokensReceived =
                 crowdfund.convertETHContributedToTokensReceived(crowdfundId, 5 ether - contributionFee);
-            (,,,, totalContributions,,,,) = crowdfund.crowdfunds(crowdfundId);
+            (,, totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor1), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
@@ -114,7 +112,7 @@ contract PartySwapCrowdfundTest is Test {
 
             uint96 expectedTokensReceived =
                 crowdfund.convertETHContributedToTokensReceived(crowdfundId, remainingContribution);
-            (,,,, totalContributions,,,,) = crowdfund.crowdfunds(crowdfundId);
+            (,, totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor2), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
