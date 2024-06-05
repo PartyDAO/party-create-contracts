@@ -8,7 +8,7 @@
           "address": "0xEad87C4eAF570a51AfFA6180695ee23A5d935Ad1"
         }
       ],
-      "constructorArgs": ["nft_name", "nft_symbol"]
+      "constructorArgs": ["nft_name", "nft_symbol", "partyDao"]
     },
     "PartySwapCrowdfund": {
       "deploys": [
