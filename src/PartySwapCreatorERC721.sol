@@ -5,13 +5,6 @@ import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC4906 } from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 
-// TODO: Restrict who can mint tokens (only PartySwapCrowdfund?)
-// TODO: The NFT is in a big protocol wide collection called “Party Tokens”
-// TODO: The NFT has the image of the token
-// TODO: The NFT is transferable
-// TODO: The NFT has an attribute that represents if the crowdfund was successful or not
-
-// TODO: Rename contract?
 contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
     error OnlyMinter();
 
@@ -36,10 +29,22 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
 
     constructor(string memory name, string memory symbol, address owner) ERC721(name, symbol) Ownable(owner) { }
 
-    function setIsMinter(address who, bool _isMinter) external onlyOwner {
-        isMinter[who] = _isMinter;
+    /**
+     * @notice Set if an address is a minter
+     * @param who The address to change the minter status
+     * @param isMinter_ The new minter status
+     */
+    function setIsMinter(address who, bool isMinter_) external onlyOwner {
+        isMinter[who] = isMinter_;
     }
 
+    /**
+     * @notice Mints a new token sequentially
+     * @param name The name of the new token
+     * @param image The image of the new token
+     * @param receiver The address that will receive the token
+     * @return The new token ID
+     */
     function mint(
         string calldata name,
         string calldata image,
@@ -56,6 +61,7 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
         return tokenId;
     }
 
+    /// @notice Set the metadata of a token indicating the crowdfund succeeded
     function setCrowdfundSucceeded(uint256 tokenId) external onlyMinter {
         tokenMetadatas[tokenId].crowdfundSuccessful = true;
         emit MetadataUpdate(tokenId);

@@ -84,7 +84,7 @@ jobs:
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
-        run: "forge test"
+        run: "forge test --ffi"
 
       - name: "Add test summary"
         run: |
@@ -108,7 +108,7 @@ jobs:
         run: "bun install"
 
       - name: "Run coverage"
-        run: "forge coverage --report lcov"
+        run: "COVERAGE=true forge coverage --report lcov"
 
       - name: "Upload coverage"
         uses: codecov/codecov-action@v4.0.1
