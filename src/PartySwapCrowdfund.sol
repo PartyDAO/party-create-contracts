@@ -8,6 +8,10 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { CircuitBreakerERC20 } from "./CircuitBreakerERC20.sol";
 import { PartySwapCreatorERC721 } from "./PartySwapCreatorERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IUniswapV3Factory } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
+import { IWETH9 } from "@uniswap/v3-periphery/contracts/interfaces/external/IWETH9.sol";
 
 // TODO: Add functions to move ETH from one token to another with one fn call?
 // e.g. ragequitAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
@@ -81,15 +85,28 @@ contract PartySwapCrowdfund is Ownable {
     /// @dev IDs start at 1.
     mapping(uint32 => Crowdfund) public crowdfunds;
 
+    INonfungiblePositionManager public immutable POSTION_MANAGER;
+    IUniswapV3Factory public immutable UNISWAP_FACTORY;
+    uint24 public immutable POOL_FEE; // TODO: What fee tier?
+    IWETH9 public immutable WETH;
+
     constructor(
         address payable partyDAO,
         PartySwapCreatorERC721 creatorNFT,
+        INonfungiblePositionManager positionManager,
+        IUniswapV3Factory uniswapFactory,
+        IWETH9 weth,
+        uint24 poolFee,
         uint96 contributionFee_,
         uint16 withdrawalFeeBps_
     )
         Ownable(partyDAO)
     {
         CREATOR_NFT = creatorNFT;
+        POSTION_MANAGER = positionManager;
+        UNISWAP_FACTORY = uniswapFactory;
+        WETH = weth;
+        POOL_FEE = poolFee;
         contributionFee = contributionFee_;
         withdrawalFeeBps = withdrawalFeeBps_;
     }
@@ -290,6 +307,40 @@ contract PartySwapCrowdfund is Ownable {
     function _finalize(Crowdfund memory crowdfund) private {
         // Transfer tokens to recipient
         crowdfund.token.transfer(crowdfund.recipient, crowdfund.numTokensForRecipient);
+
+        // Create and initialize the Uniswap V3 pool if it doesn't exist
+        address pool = UNISWAP_FACTORY.getPool(address(crowdfund.token), WETH, POOL_FEE);
+        if (pool == address(0)) {
+            pool = UNISWAP_FACTORY.createPool(address(crowdfund.token), WETH, POOL_FEE);
+            IUniswapV3Pool(pool).initialize(_calculateSqrtPriceX96(crowdfund.numTokensForLP, crowdfund.targetContribution));
+        }
+
+        // Add liquidity to the pool
+        crowdfund.token.approve(address(POSTION_MANAGER), crowdfund.numTokensForLP);
+        WETH.deposit{value: crowdfund.targetContribution}();
+        WETH.approve(address(POSTION_MANAGER), crowdfund.targetContribution);
+
+        (uint256 tokenId, , , ) = POSTION_MANAGER.mint(
+            INonfungiblePositionManager.MintParams({
+                token0: address(crowdfund.token) < WETH ? address(crowdfund.token) : WETH,
+                token1: address(crowdfund.token) < WETH ? WETH : address(crowdfund.token),
+                fee: POOL_FEE,
+                tickLower: -887272, // TODO: Get the correct tickLower based on the pool fee
+                tickUpper: 887272, // TODO: Get the correct tickUpper based on the pool fee
+                amount0Desired: address(crowdfund.token) < WETH ? crowdfund.numTokensForLP : crowdfund.targetContribution,
+                amount1Desired: address(crowdfund.token) < WETH ? crowdfund.targetContribution : crowdfund.numTokensForLP,
+                amount0Min: 0,
+                amount1Min: 0,
+                recipient: address(this),
+                deadline: block.timestamp
+            })
+        );
+    }
+
+    function _calculateSqrtPriceX96(uint256 numTokensForLP, uint256 ethAmount) private pure returns (uint160) {
+        uint256 numerator = numTokensForLP * 1e18;
+        uint256 denominator = ethAmount;
+        return uint160(Math.sqrt(numerator / denominator) * (2 ** 96));
     }
 
     function ragequit(uint32 crowdfundId) external {
