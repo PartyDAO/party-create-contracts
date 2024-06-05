@@ -19,12 +19,19 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
         bool crowdfundSuccessful;
     }
 
-    /// @notice Mapping which stores which addresses are minters.
+    /**
+     * @notice Mapping which stores which addresses are minters.
+     */
     mapping(address => bool) public isMinter;
 
-    /// @notice Store the metadata of the token.
+    /**
+     * @notice Store the metadata for each token.
+     */
     mapping(uint256 => TokenMetadata) internal tokenMetadatas;
 
+    /**
+     * @notice The total supply of the token.
+     */
     uint256 public totalSupply;
 
     constructor(string memory name, string memory symbol, address owner) ERC721(name, symbol) Ownable(owner) { }
@@ -61,7 +68,10 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
         return tokenId;
     }
 
-    /// @notice Set the metadata of a token indicating the crowdfund succeeded
+    /**
+     * @notice Set the metadata of a token indicating the crowdfund succeeded
+     * @param tokenId The token ID for which the crowdfund succeeded
+     */
     function setCrowdfundSucceeded(uint256 tokenId) external onlyMinter {
         tokenMetadatas[tokenId].crowdfundSuccessful = true;
         emit MetadataUpdate(tokenId);
