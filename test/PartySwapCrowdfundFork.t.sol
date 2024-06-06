@@ -5,10 +5,11 @@ import "forge-std/src/Test.sol";
 
 import "../src/PartySwapCrowdfund.sol";
 
-contract PartySwapCrowdfundTest is Test {
+contract PartySwapCrowdfundForkTest is Test {
     PartySwapCrowdfund crowdfund;
     PartySwapCreatorERC721 creatorNFT;
     address payable partyDAO;
+    address positionLocker;
     INonfungiblePositionManager public positionManager;
     IUniswapV3Factory public uniswapFactory;
     address public weth;
@@ -18,10 +19,16 @@ contract PartySwapCrowdfundTest is Test {
     uint16 withdrawalFeeBps = 100; // 1%
 
     function setUp() public {
+        positionManager = INonfungiblePositionManager(0x1238536071E1c677A632429e3655c799b22cDA52);
+        uniswapFactory = IUniswapV3Factory(0x0227628f3F023bb0B980b67D528571c95c6DaC1c);
+        weth = positionManager.WETH9();
+        poolFee = 3000;
+
         partyDAO = payable(vm.createWallet("Party DAO").addr);
+        positionLocker = vm.createWallet("Position Locker").addr;
         creatorNFT = new PartySwapCreatorERC721("PartySwapCreatorERC721", "PSC721", address(this));
         // TODO: Update Uniswap addresses
-        crowdfund = new PartySwapCrowdfund(partyDAO, creatorNFT, positionManager, uniswapFactory, weth, poolFee, contributionFee, withdrawalFeeBps);
+        crowdfund = new PartySwapCrowdfund(partyDAO, creatorNFT, positionManager, uniswapFactory, weth, poolFee, positionLocker, contributionFee, withdrawalFeeBps);
         creatorNFT.setIsMinter(address(crowdfund), true);
     }
 
@@ -115,7 +122,13 @@ contract PartySwapCrowdfundTest is Test {
         {
             PartySwapCrowdfund.CrowdfundLifecycle lifecycle = crowdfund.getCrowdfundLifecycle(crowdfundId);
             assertTrue(lifecycle == PartySwapCrowdfund.CrowdfundLifecycle.Finalized);
-
+        }
+        {
+            address pool = uniswapFactory.getPool(address(token), weth, poolFee);
+            assertApproxEqRel(token.balanceOf(pool), crowdfundArgs.numTokensForLP, 0.001e18); // 0.01% tolerance
+            assertApproxEqRel(IERC20(weth).balanceOf(pool), crowdfundArgs.targetContribution, 0.001e18); // 0.01% tolerance
+        }
+        {
             uint96 expectedTokensReceived =
                 crowdfund.convertETHContributedToTokensReceived(crowdfundId, remainingContribution);
             (,, totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);

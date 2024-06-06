@@ -8,6 +8,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { CircuitBreakerERC20 } from "./CircuitBreakerERC20.sol";
 import { PartySwapCreatorERC721 } from "./PartySwapCreatorERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { IUniswapV3Factory } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
@@ -16,7 +17,7 @@ import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/int
 // e.g. ragequitAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
 
 // TODO: Rename contract?
-contract PartySwapCrowdfund is Ownable {
+contract PartySwapCrowdfund is Ownable, IERC721Receiver {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
 
@@ -36,7 +37,8 @@ contract PartySwapCrowdfund is Ownable {
         uint96 ethContributed,
         uint96 withdrawalFee
     );
-    event Finalized(uint32 indexed crowdfundId, address tokenLiquidityPool);
+    event Finalized(uint32 indexed crowdfundId, address tokenLiquidityPool, uint256 liquidityPoolTokenId);
+    event PositionLockerSet(address oldPositionLocker, address newPositionLocker);
     event ContributionFeeSet(uint96 oldContributionFee, uint96 newContributionFee);
     event WithdrawalFeeBpsSet(uint16 oldWithdrawalFeeBps, uint16 newWithdrawalFeeBps);
 
@@ -76,20 +78,22 @@ contract PartySwapCrowdfund is Ownable {
     }
 
     PartySwapCreatorERC721 public immutable CREATOR_NFT;
-
-    uint32 public numOfCrowdfunds;
-    uint96 public contributionFee;
-    uint16 public withdrawalFeeBps;
-
-    /// @dev IDs start at 1.
-    mapping(uint32 => Crowdfund) public crowdfunds;
-
     INonfungiblePositionManager public immutable POSTION_MANAGER;
     IUniswapV3Factory public immutable UNISWAP_FACTORY;
     uint24 public immutable POOL_FEE; // TODO: What fee tier?
     int24 public immutable MIN_TICK;
     int24 public immutable MAX_TICK;
     address public immutable WETH;
+
+
+    // TODO: Pack storage
+    uint32 public numOfCrowdfunds;
+    uint96 public contributionFee;
+    uint16 public withdrawalFeeBps;
+    address public positionLocker;
+
+    /// @dev IDs start at 1.
+    mapping(uint32 => Crowdfund) public crowdfunds;
 
     constructor(
         address payable partyDAO,
@@ -98,6 +102,7 @@ contract PartySwapCrowdfund is Ownable {
         IUniswapV3Factory uniswapFactory,
         address weth,
         uint24 poolFee,
+        address positionLocker_,
         uint96 contributionFee_,
         uint16 withdrawalFeeBps_
     )
@@ -113,6 +118,7 @@ contract PartySwapCrowdfund is Ownable {
         MIN_TICK = (-887272 / tickSpacing) * tickSpacing;
         MAX_TICK = (887272 / tickSpacing) * tickSpacing;
 
+        positionLocker = positionLocker_;
         contributionFee = contributionFee_;
         withdrawalFeeBps = withdrawalFeeBps_;
     }
@@ -235,7 +241,7 @@ contract PartySwapCrowdfund is Ownable {
 
         // Check if the crowdfund has reached its target and finalize if necessary
         if (_getCrowdfundLifecycle(crowdfund) == CrowdfundLifecycle.Finalized) {
-            _finalize(crowdfund);
+            _finalize(id, crowdfund);
         }
 
         // Transfer the tokens to the contributor
@@ -310,40 +316,49 @@ contract PartySwapCrowdfund is Ownable {
     // TODO: The LP Fee NFT updates an attribute to indicate its been successfully upon finalization
     // TODO: When the LP position is created, the tokens become transferable.
     // TODO: Unpause token and abdicate ownership
-    function _finalize(Crowdfund memory crowdfund) private {
+    function _finalize(uint32 crowdfundId, Crowdfund memory crowdfund) private {
         // Transfer tokens to recipient
         crowdfund.token.transfer(crowdfund.recipient, crowdfund.numTokensForRecipient);
+
+        (address token0, address token1) = WETH < address(crowdfund.token)
+            ? (WETH, address(crowdfund.token))
+            : (address(crowdfund.token), WETH);
+        (uint256 amount0, uint256 amount1) = WETH < address(crowdfund.token)
+            ? (crowdfund.targetContribution, crowdfund.numTokensForLP)
+            : (crowdfund.numTokensForLP, crowdfund.targetContribution);
 
         // Create and initialize the Uniswap V3 pool if it doesn't exist
         address pool = UNISWAP_FACTORY.getPool(address(crowdfund.token), WETH, POOL_FEE);
         if (pool == address(0)) {
             pool = UNISWAP_FACTORY.createPool(address(crowdfund.token), WETH, POOL_FEE);
-            IUniswapV3Pool(pool).initialize(_calculateSqrtPriceX96(crowdfund.numTokensForLP, crowdfund.targetContribution));
+            IUniswapV3Pool(pool).initialize(_calculateSqrtPriceX96(amount0, amount1));
         }
 
         // Add liquidity to the pool
         crowdfund.token.approve(address(POSTION_MANAGER), crowdfund.numTokensForLP);
         (uint256 tokenId, , , ) = POSTION_MANAGER.mint{ value: crowdfund.targetContribution }(
             INonfungiblePositionManager.MintParams({
-                token0: address(crowdfund.token) < WETH ? address(crowdfund.token) : WETH,
-                token1: address(crowdfund.token) < WETH ? WETH : address(crowdfund.token),
+                token0: token0,
+                token1: token1,
                 fee: POOL_FEE,
                 tickLower: MIN_TICK,
                 tickUpper: MAX_TICK,
-                amount0Desired: address(crowdfund.token) < WETH ? crowdfund.numTokensForLP : crowdfund.targetContribution,
-                amount1Desired: address(crowdfund.token) < WETH ? crowdfund.targetContribution : crowdfund.numTokensForLP,
+                amount0Desired: amount0,
+                amount1Desired: amount1,
                 amount0Min: 0,
                 amount1Min: 0,
-                recipient: address(this),
+                recipient: positionLocker,
                 deadline: block.timestamp
             })
         );
+
+        emit Finalized(crowdfundId, pool, tokenId);
     }
 
-    function _calculateSqrtPriceX96(uint256 numTokensForLP, uint256 ethAmount) private pure returns (uint160) {
-        uint256 numerator = numTokensForLP * 1e18;
-        uint256 denominator = ethAmount;
-        return uint160(Math.sqrt(numerator / denominator) * (2 ** 96));
+    function _calculateSqrtPriceX96(uint256 amount0, uint256 amount1) private pure returns (uint160) {
+        uint256 numerator = amount1 * 1e18;
+        uint256 denominator = amount0;
+        return uint160(Math.sqrt(numerator / denominator) * (2 ** 96) / 1e9);
     }
 
     function ragequit(uint32 crowdfundId) external {
@@ -371,6 +386,11 @@ contract PartySwapCrowdfund is Ownable {
         emit Ragequit(crowdfundId, msg.sender, tokensReceived, ethContributed - withdrawalFee, withdrawalFee);
     }
 
+    function setPositionLocker(address positionLocker_) external onlyOwner {
+        emit PositionLockerSet(positionLocker, positionLocker_);
+        positionLocker = positionLocker_;
+    }
+
     function setContributionFee(uint96 contributionFee_) external onlyOwner {
         emit ContributionFeeSet(contributionFee, contributionFee_);
         contributionFee = contributionFee_;
@@ -379,6 +399,15 @@ contract PartySwapCrowdfund is Ownable {
     function setWithdrawalFeeBps(uint16 withdrawalFeeBps_) external onlyOwner {
         emit WithdrawalFeeBpsSet(withdrawalFeeBps, withdrawalFeeBps_);
         withdrawalFeeBps = withdrawalFeeBps_;
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external pure returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     /**
