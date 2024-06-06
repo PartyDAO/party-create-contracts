@@ -9,7 +9,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
     "@uniswap/v3-core": "Uniswap/v3-core",
-    "@uniswap/v3-periphery": "Uniswap/v3-periphery",
+    "@uniswap/v3-periphery": "Uniswap/v3-periphery#0.8",
     "ethers": "^6.12.1",
     "openzeppelin-solidity": "OpenZeppelin/openzeppelin-contracts",
     "ts-node": "^10.9.2",

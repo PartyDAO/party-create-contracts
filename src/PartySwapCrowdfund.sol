@@ -11,7 +11,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IUniswapV3Factory } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
-import { IWETH9 } from "@uniswap/v3-periphery/contracts/interfaces/external/IWETH9.sol";
 
 // TODO: Add functions to move ETH from one token to another with one fn call?
 // e.g. ragequitAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
@@ -88,14 +87,16 @@ contract PartySwapCrowdfund is Ownable {
     INonfungiblePositionManager public immutable POSTION_MANAGER;
     IUniswapV3Factory public immutable UNISWAP_FACTORY;
     uint24 public immutable POOL_FEE; // TODO: What fee tier?
-    IWETH9 public immutable WETH;
+    int24 public immutable MIN_TICK;
+    int24 public immutable MAX_TICK;
+    address public immutable WETH;
 
     constructor(
         address payable partyDAO,
         PartySwapCreatorERC721 creatorNFT,
         INonfungiblePositionManager positionManager,
         IUniswapV3Factory uniswapFactory,
-        IWETH9 weth,
+        address weth,
         uint24 poolFee,
         uint96 contributionFee_,
         uint16 withdrawalFeeBps_
@@ -107,6 +108,11 @@ contract PartySwapCrowdfund is Ownable {
         UNISWAP_FACTORY = uniswapFactory;
         WETH = weth;
         POOL_FEE = poolFee;
+
+        int24 tickSpacing = uniswapFactory.feeAmountTickSpacing(poolFee);
+        MIN_TICK = (-887272 / tickSpacing) * tickSpacing;
+        MAX_TICK = (887272 / tickSpacing) * tickSpacing;
+
         contributionFee = contributionFee_;
         withdrawalFeeBps = withdrawalFeeBps_;
     }
@@ -317,16 +323,13 @@ contract PartySwapCrowdfund is Ownable {
 
         // Add liquidity to the pool
         crowdfund.token.approve(address(POSTION_MANAGER), crowdfund.numTokensForLP);
-        WETH.deposit{value: crowdfund.targetContribution}();
-        WETH.approve(address(POSTION_MANAGER), crowdfund.targetContribution);
-
-        (uint256 tokenId, , , ) = POSTION_MANAGER.mint(
+        (uint256 tokenId, , , ) = POSTION_MANAGER.mint{ value: crowdfund.targetContribution }(
             INonfungiblePositionManager.MintParams({
                 token0: address(crowdfund.token) < WETH ? address(crowdfund.token) : WETH,
                 token1: address(crowdfund.token) < WETH ? WETH : address(crowdfund.token),
                 fee: POOL_FEE,
-                tickLower: -887272, // TODO: Get the correct tickLower based on the pool fee
-                tickUpper: 887272, // TODO: Get the correct tickUpper based on the pool fee
+                tickLower: MIN_TICK,
+                tickUpper: MAX_TICK,
                 amount0Desired: address(crowdfund.token) < WETH ? crowdfund.numTokensForLP : crowdfund.targetContribution,
                 amount1Desired: address(crowdfund.token) < WETH ? crowdfund.targetContribution : crowdfund.numTokensForLP,
                 amount0Min: 0,

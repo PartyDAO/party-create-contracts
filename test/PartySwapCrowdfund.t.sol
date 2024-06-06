@@ -9,6 +9,10 @@ contract PartySwapCrowdfundTest is Test {
     PartySwapCrowdfund crowdfund;
     PartySwapCreatorERC721 creatorNFT;
     address payable partyDAO;
+    INonfungiblePositionManager public positionManager;
+    IUniswapV3Factory public uniswapFactory;
+    address public weth;
+    uint24 public poolFee;
 
     uint96 contributionFee = 0.00055 ether;
     uint16 withdrawalFeeBps = 100; // 1%
@@ -16,7 +20,8 @@ contract PartySwapCrowdfundTest is Test {
     function setUp() public {
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         creatorNFT = new PartySwapCreatorERC721("PartySwapCreatorERC721", "PSC721", address(this));
-        crowdfund = new PartySwapCrowdfund(partyDAO, creatorNFT, contributionFee, withdrawalFeeBps);
+        // TODO: Update Uniswap addresses
+        crowdfund = new PartySwapCrowdfund(partyDAO, creatorNFT, positionManager, uniswapFactory, weth, poolFee, contributionFee, withdrawalFeeBps);
         creatorNFT.setIsMinter(address(crowdfund), true);
     }
 
