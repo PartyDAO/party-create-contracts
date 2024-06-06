@@ -3,6 +3,7 @@ pragma solidity ^0.8.25;
 
 import { ERC20Permit, Nonces } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { ERC20Votes, ERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
+import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
@@ -10,9 +11,13 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
     event PausedSet(bool paused);
 
     error TokenPaused();
+    error Unauthorized();
 
     /// @notice Whether the token is paused. Can be toggled by owner.
     bool public paused;
+
+    IERC721 public immutable OWNERSHIP_NFT;
+    uint256 public immutable OWNERSHIP_NFT_ID;
 
     constructor(
         string memory name,
@@ -21,7 +26,9 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
         string memory description,
         uint256 totalSupply,
         address receiver,
-        address owner
+        address owner,
+        IERC721 ownershipNft,
+        uint256 ownershipNFTIds
     )
         ERC20(name, symbol)
         ERC20Permit(name)
@@ -29,6 +36,9 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
     {
         _mint(receiver, totalSupply);
         emit MetadataSet(image, description);
+
+        OWNERSHIP_NFT = ownershipNft;
+        OWNERSHIP_NFT_ID = ownershipNFTIds;
     }
 
     /// @notice Only owner can transfer functions when paused. They can transfer out or call `transferFrom` to
@@ -58,6 +68,19 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
         paused = _paused;
 
         emit PausedSet(paused);
+    }
+
+    /**
+     * @notice Emit an event setting the metadata for the token.
+     * @dev Only callable by the owner of the ownership NFT.
+     * @param image Image URI for the metadata. Generally should be an IPFS URI.
+     * @param description  Plain text description of the token.
+     */
+    function setMetadata(string memory image, string memory description) external {
+        if (msg.sender != OWNERSHIP_NFT.ownerOf(OWNERSHIP_NFT_ID)) {
+            revert Unauthorized();
+        }
+        emit MetadataSet(image, description);
     }
 
     /**
