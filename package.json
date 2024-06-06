@@ -39,7 +39,7 @@
     "prettier:check": "prettier --check \"**/*.{json,md,yml}\" --ignore-path \".prettierignore\"",
     "prettier:write": "prettier --write \"**/*.{json,md,yml}\" --ignore-path \".prettierignore\"",
     "test": "forge test",
-    "test:coverage": "forge coverage",
-    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
+    "test:coverage": "COVERAGE=true forge coverage",
+    "test:coverage:report": "COVERAGE=true forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
   }
 }
