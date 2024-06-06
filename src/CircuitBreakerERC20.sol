@@ -13,12 +13,32 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
     error TokenPaused();
     error Unauthorized();
 
-    /// @notice Whether the token is paused. Can be toggled by owner.
+    /**
+     * @notice Whether the token is paused. Can be toggled by owner.
+     */
     bool public paused;
 
+    /**
+     * @notice The NFT collector of launch admin NFTs.
+     */
     IERC721 public immutable OWNERSHIP_NFT;
+
+    /**
+     * @notice The ID of the specific launch admin NFT that owns this collection.
+     */
     uint256 public immutable OWNERSHIP_NFT_ID;
 
+    /**
+     * @param name Name of the token
+     * @param symbol Symbol of the token
+     * @param image Image of the token (only emitted in event, not stored in contract)
+     * @param description Description of the token (only emitted in event, not stored in contract)
+     * @param totalSupply Total supply of the token
+     * @param receiver Where the entire supply is initially sent
+     * @param owner Initial owner of the contract
+     * @param ownershipNft Ownership NFT contract
+     * @param ownershipNFTIds Ownership NFT ID
+     */
     constructor(
         string memory name,
         string memory symbol,
@@ -41,8 +61,10 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
         OWNERSHIP_NFT_ID = ownershipNFTIds;
     }
 
-    /// @notice Only owner can transfer functions when paused. They can transfer out or call `transferFrom` to
-    /// themselves.
+    /**
+     *  @dev Only owner can transfer functions when paused. They can transfer out or call `transferFrom` to
+     * themselves.
+     */
     function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
         address owner = owner();
         if (paused && from != owner && (to != owner || msg.sender != owner)) {
@@ -51,23 +73,24 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
         super._update(from, to, value);
     }
 
-    /// @dev Enable owner to spend tokens without approval.
+    /**
+     * @dev Enable owner to spend tokens without approval.
+     */
     function _spendAllowance(address tokenOwner, address tokenSpender, uint256 value) internal override(ERC20) {
         if (tokenSpender != owner()) {
             super._spendAllowance(tokenOwner, tokenSpender, value);
         }
     }
 
-    // The following functions are overrides required by Solidity.
-    function nonces(address owner) public view override(ERC20Permit, Nonces) returns (uint256) {
-        return super.nonces(owner);
-    }
+    /**
+     * @notice Set the paused state of the token. Only callable by the owner.
+     * @param paused_ The new paused state.
+     */
+    function setPaused(bool paused_) external onlyOwner {
+        if (paused == paused_) return;
+        paused = paused_;
 
-    function setPaused(bool _paused) external onlyOwner {
-        if (paused == _paused) return;
-        paused = _paused;
-
-        emit PausedSet(paused);
+        emit PausedSet(paused_);
     }
 
     /**
@@ -89,5 +112,12 @@ contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
      */
     function VERSION() external pure returns (string memory) {
         return "0.1.0";
+    }
+
+    /**
+     * @notice The following functions are overrides required by Solidity.
+     */
+    function nonces(address owner) public view override(ERC20Permit, Nonces) returns (uint256) {
+        return super.nonces(owner);
     }
 }
