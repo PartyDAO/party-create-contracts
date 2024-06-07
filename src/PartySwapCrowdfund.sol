@@ -419,6 +419,6 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
      *      change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.2.0";
+        return "0.3.0";
     }
 }
