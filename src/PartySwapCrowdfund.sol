@@ -80,7 +80,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
     PartySwapCreatorERC721 public immutable CREATOR_NFT;
     INonfungiblePositionManager public immutable POSTION_MANAGER;
     IUniswapV3Factory public immutable UNISWAP_FACTORY;
-    uint24 public immutable POOL_FEE; // TODO: What fee tier?
+    uint24 public immutable POOL_FEE;
     int24 public immutable MIN_TICK;
     int24 public immutable MAX_TICK;
     address public immutable WETH;
@@ -234,7 +234,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
         crowdfunds[id].totalContributions = crowdfund.totalContributions = newTotalContributions;
 
         uint96 tokensReceived = _convertETHContributedToTokensReceived(
-            contributionAmount, crowdfund.targetContribution, crowdfund.numTokensForLP
+            contributionAmount, crowdfund.targetContribution, crowdfund.numTokensForDistribution
         );
 
         emit Contribute(id, contributor, comment, contributionAmount, tokensReceived, contributionFee_);
@@ -263,7 +263,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
     {
         Crowdfund memory crowdfund = crowdfunds[crowdfundId];
         tokensReceived = _convertETHContributedToTokensReceived(
-            ethContributed, crowdfund.targetContribution, crowdfund.numTokensForLP
+            ethContributed, crowdfund.targetContribution, crowdfund.numTokensForDistribution
         );
     }
 
@@ -277,36 +277,36 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
     {
         Crowdfund memory crowdfund = crowdfunds[crowdfundId];
         ethContributed = _convertTokensReceivedToETHContributed(
-            tokensReceived, crowdfund.targetContribution, crowdfund.numTokensForLP
+            tokensReceived, crowdfund.targetContribution, crowdfund.numTokensForDistribution
         );
     }
 
     function _convertETHContributedToTokensReceived(
         uint96 ethContributed,
         uint96 targetContribution,
-        uint96 numTokensForLP
+        uint96 numTokensForDistribution
     )
         private
         pure
         returns (uint96 tokensReceived)
     {
-        // tokensReceived = ethContributed * numTokensForLP / targetContribution
+        // tokensReceived = ethContributed * numTokensForDistribution / targetContribution
         // Use Math.mulDiv to avoid overflow doing math with uint96s, then safe cast uint256 result to uint96.
-        tokensReceived = Math.mulDiv(ethContributed, numTokensForLP, targetContribution).toUint96();
+        tokensReceived = Math.mulDiv(ethContributed, numTokensForDistribution, targetContribution).toUint96();
     }
 
     function _convertTokensReceivedToETHContributed(
         uint96 tokensReceived,
         uint96 targetContribution,
-        uint96 numTokensForLP
+        uint96 numTokensForDistribution
     )
         private
         pure
         returns (uint96 ethContributed)
     {
-        // ethContributed = tokensReceived * targetContribution / numTokensForLP
+        // tokensReceived = ethContributed * numTokensForDistribution / targetContribution
         // Use Math.mulDiv to avoid overflow doing math with uint96s, then safe cast uint256 result to uint96.
-        ethContributed = Math.mulDiv(tokensReceived, targetContribution, numTokensForLP).toUint96();
+        ethContributed = Math.mulDiv(tokensReceived, targetContribution, numTokensForDistribution).toUint96();
     }
 
     // TODO: When the crowdfund is finalized, the contract integrates with Uniswap V3 to provide liquidity. The
@@ -367,7 +367,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
 
         uint96 tokensReceived = uint96(crowdfund.token.balanceOf(msg.sender));
         uint96 ethContributed = _convertTokensReceivedToETHContributed(
-            tokensReceived, crowdfund.targetContribution, crowdfund.numTokensForLP
+            tokensReceived, crowdfund.targetContribution, crowdfund.numTokensForDistribution
         );
         uint96 withdrawalFee = (ethContributed * withdrawalFeeBps) / 1e4;
 
