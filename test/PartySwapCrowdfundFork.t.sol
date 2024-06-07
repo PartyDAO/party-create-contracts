@@ -28,7 +28,17 @@ contract PartySwapCrowdfundForkTest is Test {
         positionLocker = vm.createWallet("Position Locker").addr;
         creatorNFT = new PartySwapCreatorERC721("PartySwapCreatorERC721", "PSC721", address(this));
         // TODO: Update Uniswap addresses
-        crowdfund = new PartySwapCrowdfund(partyDAO, creatorNFT, positionManager, uniswapFactory, weth, poolFee, positionLocker, contributionFee, withdrawalFeeBps);
+        crowdfund = new PartySwapCrowdfund(
+            partyDAO,
+            creatorNFT,
+            positionManager,
+            uniswapFactory,
+            weth,
+            poolFee,
+            positionLocker,
+            contributionFee,
+            withdrawalFeeBps
+        );
         creatorNFT.setIsMinter(address(crowdfund), true);
     }
 
@@ -127,7 +137,8 @@ contract PartySwapCrowdfundForkTest is Test {
         {
             address pool = uniswapFactory.getPool(address(token), weth, poolFee);
             assertApproxEqRel(token.balanceOf(pool), crowdfundArgs.numTokensForLP, 0.001e18); // 0.01% tolerance
-            assertApproxEqRel(IERC20(weth).balanceOf(pool), crowdfundArgs.targetContribution, 0.001e18); // 0.01% tolerance
+            assertApproxEqRel(IERC20(weth).balanceOf(pool), crowdfundArgs.targetContribution, 0.001e18); // 0.01%
+                // tolerance
         }
         {
             uint96 expectedTokensReceived =
@@ -137,6 +148,7 @@ contract PartySwapCrowdfundForkTest is Test {
             assertEq(token.balanceOf(contributor2), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
             assertEq(token.balanceOf(recipient), crowdfundArgs.numTokensForRecipient);
+            assertApproxEqAbs(token.balanceOf(address(crowdfund)), 0, 0.0000000000001e18);
         }
     }
 

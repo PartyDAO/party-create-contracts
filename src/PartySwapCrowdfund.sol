@@ -67,7 +67,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
     }
 
     struct Crowdfund {
-        IERC20 token;
+        CircuitBreakerERC20 token;
         uint96 targetContribution;
         uint96 totalContributions;
         uint96 numTokensForLP;
@@ -84,7 +84,6 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
     int24 public immutable MIN_TICK;
     int24 public immutable MAX_TICK;
     address public immutable WETH;
-
 
     // TODO: Pack storage
     uint32 public numOfCrowdfunds;
@@ -115,8 +114,8 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
         POOL_FEE = poolFee;
 
         int24 tickSpacing = uniswapFactory.feeAmountTickSpacing(poolFee);
-        MIN_TICK = (-887272 / tickSpacing) * tickSpacing;
-        MAX_TICK = (887272 / tickSpacing) * tickSpacing;
+        MIN_TICK = (-887_272 / tickSpacing) * tickSpacing;
+        MAX_TICK = (887_272 / tickSpacing) * tickSpacing;
 
         positionLocker = positionLocker_;
         contributionFee = contributionFee_;
@@ -309,20 +308,11 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
         ethContributed = Math.mulDiv(tokensReceived, targetContribution, numTokensForDistribution).toUint96();
     }
 
-    // TODO: When the crowdfund is finalized, the contract integrates with Uniswap V3 to provide liquidity. The
-    // remaining token supply is transferred to the liquidity pool.
-    // TODO: The LP tokens are locked in a fee locker contract
     // TODO: Fee Collector needs to be aware of LP NFT owner
     // TODO: The LP Fee NFT updates an attribute to indicate its been successfully upon finalization
-    // TODO: When the LP position is created, the tokens become transferable.
-    // TODO: Unpause token and abdicate ownership
     function _finalize(uint32 crowdfundId, Crowdfund memory crowdfund) private {
-        // Transfer tokens to recipient
-        crowdfund.token.transfer(crowdfund.recipient, crowdfund.numTokensForRecipient);
-
-        (address token0, address token1) = WETH < address(crowdfund.token)
-            ? (WETH, address(crowdfund.token))
-            : (address(crowdfund.token), WETH);
+        (address token0, address token1) =
+            WETH < address(crowdfund.token) ? (WETH, address(crowdfund.token)) : (address(crowdfund.token), WETH);
         (uint256 amount0, uint256 amount1) = WETH < address(crowdfund.token)
             ? (crowdfund.targetContribution, crowdfund.numTokensForLP)
             : (crowdfund.numTokensForLP, crowdfund.targetContribution);
@@ -336,7 +326,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
 
         // Add liquidity to the pool
         crowdfund.token.approve(address(POSTION_MANAGER), crowdfund.numTokensForLP);
-        (uint256 tokenId, , , ) = POSTION_MANAGER.mint{ value: crowdfund.targetContribution }(
+        (uint256 tokenId,,,) = POSTION_MANAGER.mint{ value: crowdfund.targetContribution }(
             INonfungiblePositionManager.MintParams({
                 token0: token0,
                 token1: token1,
@@ -347,10 +337,29 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
                 amount1Desired: amount1,
                 amount0Min: 0,
                 amount1Min: 0,
-                recipient: positionLocker,
+                recipient: address(this),
                 deadline: block.timestamp
             })
         );
+
+        // Transfer LP to fee collector contract
+        POSTION_MANAGER.safeTransferFrom(
+            address(this),
+            positionLocker,
+            tokenId,
+            "" // TODO: Pass data to fee collector contract
+        );
+
+        // Transfer tokens to recipient
+        if (crowdfund.numTokensForRecipient > 0) {
+            crowdfund.token.transfer(crowdfund.recipient, crowdfund.numTokensForRecipient);
+        }
+
+        // Unpause token
+        crowdfund.token.setPaused(false);
+
+        // Renounce ownership
+        crowdfund.token.renounceOwnership();
 
         emit Finalized(crowdfundId, pool, tokenId);
     }
@@ -401,12 +410,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
         withdrawalFeeBps = withdrawalFeeBps_;
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes calldata
-    ) external pure returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
