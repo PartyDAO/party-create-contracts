@@ -112,6 +112,8 @@ contract PartySwapCrowdfund is Ownable {
 
         id = ++numOfCrowdfunds;
 
+        uint256 lpOwnershipNFTId = CREATOR_NFT.mint(erc20Args.name, erc20Args.image, msg.sender);
+
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
         CircuitBreakerERC20 token = new CircuitBreakerERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
             erc20Args.name,
@@ -120,12 +122,11 @@ contract PartySwapCrowdfund is Ownable {
             erc20Args.description,
             erc20Args.totalSupply,
             address(this),
-            address(this)
+            address(this),
+            CREATOR_NFT,
+            lpOwnershipNFTId
         );
         token.setPaused(true);
-
-        // Create new creator NFT. ID of new NFT should correspond to the ID of the crowdfund.
-        CREATOR_NFT.mint(erc20Args.name, erc20Args.image, msg.sender);
 
         // Initialize new crowdfund.
         Crowdfund memory crowdfund = crowdfunds[id] = Crowdfund({
