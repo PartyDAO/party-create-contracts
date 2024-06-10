@@ -188,4 +188,8 @@ contract PartySwapCrowdfundTest is Test {
 
         assertEq(crowdfund.withdrawalFeeBps(), newWithdrawalFeeBps);
     }
+
+    function test_VERSION_works() public {
+        assertEq(crowdfund.VERSION(), "0.3.0");
+    }
 }
