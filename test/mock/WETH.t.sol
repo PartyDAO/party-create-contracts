@@ -15,9 +15,7 @@
 
 pragma solidity ^0.8;
 
-import { IWETH } from "src/external/IWETH.sol";
-
-contract WETH9 is IWETH {
+contract WETH9 {
     string public name = "Wrapped Ether";
     string public symbol = "WETH";
     uint8 public decimals = 18;
