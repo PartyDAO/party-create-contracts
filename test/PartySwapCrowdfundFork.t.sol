@@ -12,7 +12,7 @@ contract PartySwapCrowdfundForkTest is Test {
     address positionLocker;
     INonfungiblePositionManager public positionManager;
     IUniswapV3Factory public uniswapFactory;
-    address public weth;
+    address payable public weth;
     uint24 public poolFee;
 
     uint96 contributionFee = 0.00055 ether;
@@ -21,13 +21,12 @@ contract PartySwapCrowdfundForkTest is Test {
     function setUp() public {
         positionManager = INonfungiblePositionManager(0x1238536071E1c677A632429e3655c799b22cDA52);
         uniswapFactory = IUniswapV3Factory(0x0227628f3F023bb0B980b67D528571c95c6DaC1c);
-        weth = positionManager.WETH9();
+        weth = payable(positionManager.WETH9());
         poolFee = 3000;
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         positionLocker = vm.createWallet("Position Locker").addr;
         creatorNFT = new PartySwapCreatorERC721("PartySwapCreatorERC721", "PSC721", address(this));
-        // TODO: Update Uniswap addresses
         crowdfund = new PartySwapCrowdfund(
             partyDAO,
             creatorNFT,
@@ -42,7 +41,6 @@ contract PartySwapCrowdfundForkTest is Test {
         creatorNFT.setIsMinter(address(crowdfund), true);
     }
 
-    // TODO: Check emitted events
     function testIntegration_crowdfundLifecycle() public {
         address creator = vm.createWallet("Creator").addr;
         address recipient = vm.createWallet("Recipient").addr;
@@ -106,17 +104,19 @@ contract PartySwapCrowdfundForkTest is Test {
         }
 
         // Step 3: Ragequit from the crowdfund
-        vm.startPrank(contributor1);
-        token.approve(address(crowdfund), token.balanceOf(contributor1));
-        crowdfund.ragequit(crowdfundId);
-        vm.stopPrank();
-
-        expectedTotalContributions -= 5 ether - contributionFee;
         {
-            uint96 withdrawalFee = (5 ether - contributionFee) * withdrawalFeeBps / 1e4;
+            uint96 tokenBalance = uint96(token.balanceOf(contributor1));
+            vm.startPrank(contributor1);
+            token.approve(address(crowdfund), tokenBalance);
+            crowdfund.ragequit(crowdfundId);
+            vm.stopPrank();
+
+            uint96 expectedETHReceived = crowdfund.convertTokensReceivedToETHContributed(crowdfundId, tokenBalance);
+            expectedTotalContributions -= expectedETHReceived;
+            uint96 withdrawalFee = expectedETHReceived * withdrawalFeeBps / 1e4;
             expectedPartyDAOBalance += withdrawalFee;
             assertEq(token.balanceOf(contributor1), 0);
-            // assertEq(contributor1.balance, 5 ether - contributionFee - withdrawalFee);
+            assertEq(contributor1.balance, expectedETHReceived - withdrawalFee);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
         }
 
@@ -150,26 +150,5 @@ contract PartySwapCrowdfundForkTest is Test {
             assertEq(token.balanceOf(recipient), crowdfundArgs.numTokensForRecipient);
             assertApproxEqAbs(token.balanceOf(address(crowdfund)), 0, 0.0000000000001e18);
         }
-    }
-
-    function test_setContributionFee() public {
-        assertEq(crowdfund.contributionFee(), 0.00055 ether);
-
-        uint96 newContributionFee = 0.001 ether;
-        vm.prank(partyDAO);
-        crowdfund.setContributionFee(newContributionFee);
-
-        // Check updated contribution fee
-        assertEq(crowdfund.contributionFee(), newContributionFee);
-    }
-
-    function test_setWithdrawalFeeBps() public {
-        assertEq(crowdfund.withdrawalFeeBps(), 100);
-
-        uint16 newWithdrawalFeeBps = 50; // 0.5%
-        vm.prank(partyDAO);
-        crowdfund.setWithdrawalFeeBps(newWithdrawalFeeBps);
-
-        assertEq(crowdfund.withdrawalFeeBps(), newWithdrawalFeeBps);
     }
 }
