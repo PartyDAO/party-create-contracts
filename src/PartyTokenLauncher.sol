@@ -105,8 +105,7 @@ contract PartyTokenLauncher is Ownable {
         require(launchArgs.targetContribution > 0, "Target contribution must be greater than zero");
         require(
             erc20Args.totalSupply
-                >= launchArgs.numTokensForLP + launchArgs.numTokensForDistribution
-                    + launchArgs.numTokensForRecipient,
+                >= launchArgs.numTokensForLP + launchArgs.numTokensForDistribution + launchArgs.numTokensForRecipient,
             "Total supply must be at least the sum of tokens"
         );
 
@@ -205,9 +204,8 @@ contract PartyTokenLauncher is Ownable {
         // Update state
         launches[id].totalContributions = launch.totalContributions = newTotalContributions;
 
-        uint96 tokensReceived = _convertETHContributedToTokensReceived(
-            contributionAmount, launch.targetContribution, launch.numTokensForLP
-        );
+        uint96 tokensReceived =
+            _convertETHContributedToTokensReceived(contributionAmount, launch.targetContribution, launch.numTokensForLP);
 
         emit Contribute(id, contributor, comment, contributionAmount, tokensReceived, contributionFee_);
 
@@ -234,9 +232,8 @@ contract PartyTokenLauncher is Ownable {
         returns (uint96 tokensReceived)
     {
         Launch memory launch = launches[launchId];
-        tokensReceived = _convertETHContributedToTokensReceived(
-            ethContributed, launch.targetContribution, launch.numTokensForLP
-        );
+        tokensReceived =
+            _convertETHContributedToTokensReceived(ethContributed, launch.targetContribution, launch.numTokensForLP);
     }
 
     function convertTokensReceivedToETHContributed(
@@ -248,9 +245,8 @@ contract PartyTokenLauncher is Ownable {
         returns (uint96 ethContributed)
     {
         Launch memory launch = launches[launchId];
-        ethContributed = _convertTokensReceivedToETHContributed(
-            tokensReceived, launch.targetContribution, launch.numTokensForLP
-        );
+        ethContributed =
+            _convertTokensReceivedToETHContributed(tokensReceived, launch.targetContribution, launch.numTokensForLP);
     }
 
     function _convertETHContributedToTokensReceived(
@@ -298,9 +294,8 @@ contract PartyTokenLauncher is Ownable {
         require(_getLaunchLifecycle(launch) == LaunchLifecycle.Active, "Launch is not active");
 
         uint96 tokensReceived = uint96(launch.token.balanceOf(msg.sender));
-        uint96 ethContributed = _convertTokensReceivedToETHContributed(
-            tokensReceived, launch.targetContribution, launch.numTokensForLP
-        );
+        uint96 ethContributed =
+            _convertTokensReceivedToETHContributed(tokensReceived, launch.targetContribution, launch.numTokensForLP);
         uint96 withdrawalFee = (ethContributed * withdrawalFeeBps) / 1e4;
 
         // Pull tokens from sender
