@@ -15,8 +15,7 @@ abstract contract MockUniswapV3Deployer {
     function _deployUniswapV3() internal returns (UniswapV3Deployment memory deployment) {
         deployment.WETH = payable(new WETH9());
         deployment.FACTORY = address(new MockUniswapV3Factory());
-        deployment.POSITION_MANAGER = address(
-            new MockUniswapNonfungiblePositionManager(deployment.WETH, deployment.FACTORY)
-        );
+        deployment.POSITION_MANAGER =
+            address(new MockUniswapNonfungiblePositionManager(deployment.WETH, deployment.FACTORY));
     }
 }
