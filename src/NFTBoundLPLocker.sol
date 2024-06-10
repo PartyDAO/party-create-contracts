@@ -3,16 +3,19 @@ pragma solidity ^0.8.25;
 
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IWETH } from "./external/IWETH.sol";
+import { IUNCX } from "./external/IUNCX.sol";
 
-contract NFTBoundLPLocker is IERC721Receiver {
+contract NFTBoundLPLocker is IERC721Receiver, ReentrancyGuard {
     error OnlyPositionManager();
     error InvalidFeeBps();
 
     enum FeeType {
-        TokenA,
-        TokenB,
+        Token0,
+        Token1,
         Both
     }
 
@@ -23,6 +26,8 @@ contract NFTBoundLPLocker is IERC721Receiver {
     }
 
     struct LPInfo {
+        address token0;
+        address token1;
         uint256 lpOwnerTokenId;
         AdditionalFeeRecipient[] additionalFeeRecipients;
     }
@@ -30,38 +35,106 @@ contract NFTBoundLPLocker is IERC721Receiver {
     INonfungiblePositionManager public immutable POSITION_MANAGER;
     IWETH public immutable WETH;
     IERC721 public immutable LP_OWNER_NFT;
+    IUNCX public immutable UNCX;
 
     mapping(uint256 => LPInfo) public lpInfos;
 
-    constructor(INonfungiblePositionManager positionManager_, IWETH weth_, IERC721 lpOwnerNft_) {
-        POSITION_MANAGER = positionManager_;
-        WETH = weth_;
-        LP_OWNER_NFT = lpOwnerNft_;
+    constructor(INonfungiblePositionManager positionManager, IWETH weth, IERC721 lpOwnerNft, IUNCX uncx) {
+        POSITION_MANAGER = positionManager;
+        WETH = weth;
+        LP_OWNER_NFT = lpOwnerNft;
+        UNCX = uncx;
     }
 
     function onERC721Received(address, address, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
 
         LPInfo memory lpInfo = abi.decode(data, (LPInfo));
-        lpInfos[tokenId].lpOwnerTokenId = lpInfo.lpOwnerTokenId;
 
-        uint256 tokenATotalBps;
-        uint256 tokenBTotalBps;
+        // First lock in UNCX to get lockId
+        IUNCX.LockParams memory lockParams = IUNCX.LockParams({
+            nftPositionManager: POSITION_MANAGER,
+            nft_id: tokenId,
+            dustRecipient: lpInfo.additionalFeeRecipients[0].recipient,
+            owner: address(this),
+            additionalCollector: address(0),
+            collectAddress: lpInfo.additionalFeeRecipients[0].recipient,
+            unlockDate: type(uint256).max,
+            countryCode: 0,
+            feeName: "LVP",
+            r: new bytes[](0)
+        });
+
+        POSITION_MANAGER.approve(address(UNCX), tokenId);
+        uint256 lockId = UNCX.lock(lockParams);
+
+        lpInfos[lockId].lpOwnerTokenId = lpInfo.lpOwnerTokenId;
+        (,, lpInfos[lockId].token0, lpInfos[lockId].token1,,,,,,,,) = POSITION_MANAGER.positions(tokenId);
+
+        uint256 token0TotalBps;
+        uint256 token1TotalBps;
         for (uint256 i = 0; i < lpInfo.additionalFeeRecipients.length; i++) {
-            lpInfos[tokenId].additionalFeeRecipients.push(lpInfo.additionalFeeRecipients[i]);
+            lpInfos[lockId].additionalFeeRecipients.push(lpInfo.additionalFeeRecipients[i]);
 
             FeeType feeType = lpInfo.additionalFeeRecipients[i].feeType;
-            tokenATotalBps += feeType == FeeType.TokenA || feeType == FeeType.Both
+            token0TotalBps += feeType == FeeType.Token0 || feeType == FeeType.Both
                 ? lpInfo.additionalFeeRecipients[i].percentageBps
                 : 0;
-            tokenBTotalBps += feeType == FeeType.TokenB || feeType == FeeType.Both
+            token1TotalBps += feeType == FeeType.Token1 || feeType == FeeType.Both
                 ? lpInfo.additionalFeeRecipients[i].percentageBps
                 : 0;
         }
 
-        if (tokenATotalBps > 10_000 || tokenBTotalBps > 10_000) revert InvalidFeeBps();
+        if (token0TotalBps > 10_000 || token1TotalBps > 10_000) revert InvalidFeeBps();
 
         return IERC721Receiver.onERC721Received.selector;
+    }
+
+    function collect(uint256 lockId) external nonReentrant {
+        LPInfo memory lpInfo = lpInfos[lockId];
+
+        (uint256 amount0, uint256 amount1,,) = UNCX.collect(lockId, address(this), type(uint128).max, type(uint128).max);
+
+        if (lpInfo.token0 == address(WETH)) {
+            WETH.withdraw(amount0);
+        }
+        if (lpInfo.token1 == address(WETH)) {
+            WETH.withdraw(amount1);
+        }
+
+        for (uint256 i = 0; i < lpInfo.additionalFeeRecipients.length; i++) {
+            AdditionalFeeRecipient memory recipient = lpInfo.additionalFeeRecipients[i];
+
+            if (recipient.feeType == FeeType.Token0 || recipient.feeType == FeeType.Both) {
+                if (lpInfo.token0 == address(WETH)) {
+                    recipient.recipient.call{ value: amount0 * recipient.percentageBps / 10_000, gas: 10_000 }("");
+                } else {
+                    IERC20(lpInfo.token0).transfer(recipient.recipient, amount0 * recipient.percentageBps / 10_000);
+                }
+            }
+
+            if (recipient.feeType == FeeType.Token1 || recipient.feeType == FeeType.Both) {
+                if (lpInfo.token1 == address(WETH)) {
+                    recipient.recipient.call{ value: amount1 * recipient.percentageBps / 10_000, gas: 10_000 }("");
+                } else {
+                    IERC20(lpInfo.token1).transfer(recipient.recipient, amount1 * recipient.percentageBps / 10_000);
+                }
+            }
+        }
+
+        address remainingReceiver = LP_OWNER_NFT.ownerOf(lpInfo.lpOwnerTokenId);
+
+        if (lpInfo.token0 == address(WETH)) {
+            remainingReceiver.call{ value: address(this).balance, gas: 10_000 }("");
+        } else {
+            IERC20(lpInfo.token0).transfer(remainingReceiver, IERC20(lpInfo.token0).balanceOf(address(this)));
+        }
+
+        if (lpInfo.token1 == address(WETH)) {
+            remainingReceiver.call{ value: address(this).balance, gas: 10_000 }("");
+        } else {
+            IERC20(lpInfo.token1).transfer(remainingReceiver, IERC20(lpInfo.token1).balanceOf(address(this)));
+        }
     }
 
     /**
