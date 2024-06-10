@@ -5,7 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { CircuitBreakerERC20 } from "./CircuitBreakerERC20.sol";
+import { PartyERC20 } from "./PartyERC20.sol";
 import { PartyTokenAdminERC721 } from "./PartyTokenAdminERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -13,7 +13,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // e.g. ragequitAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
 
 // TODO: Rename contract?
-contract PartySwapCrowdfund is Ownable {
+contract PartyTokenLauncher is Ownable {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
 
@@ -115,7 +115,7 @@ contract PartySwapCrowdfund is Ownable {
         uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(erc20Args.name, erc20Args.image, msg.sender);
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
-        CircuitBreakerERC20 token = new CircuitBreakerERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
+        PartyERC20 token = new PartyERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
             erc20Args.name,
             erc20Args.symbol,
             erc20Args.image,

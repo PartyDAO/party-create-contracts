@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.25 <0.9.0;
 
-import { CircuitBreakerERC20 } from "../src/CircuitBreakerERC20.sol";
+import { PartyERC20 } from "../src/PartyERC20.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { UseImmutableCreate2Factory } from "./util/UseImmutableCreate2Factory.t.sol";
 import { PartyTokenAdminERC721 } from "../src/PartyTokenAdminERC721.sol";
 
-contract CircuitBreakerERC20Test is UseImmutableCreate2Factory {
-    CircuitBreakerERC20 public token;
+contract PartyERC20Test is UseImmutableCreate2Factory {
+    PartyERC20 public token;
     PartyTokenAdminERC721 public ownershipNft;
 
     event MetadataSet(string image, string description);
@@ -15,14 +15,14 @@ contract CircuitBreakerERC20Test is UseImmutableCreate2Factory {
     function setUp() public override {
         super.setUp();
         ownershipNft = new PartyTokenAdminERC721("Ownership NFT", "ON", address(this));
-        token = CircuitBreakerERC20(
+        token = PartyERC20(
             factory.safeCreate2(
                 bytes32(0),
                 abi.encodePacked(
-                    type(CircuitBreakerERC20).creationCode,
+                    type(PartyERC20).creationCode,
                     abi.encode(
-                        "CircuitBreakerERC20",
-                        "CBK",
+                        "PartyERC20",
+                        "PARTY",
                         "MyImage",
                         "MyDescription",
                         100_000,
@@ -51,7 +51,7 @@ contract CircuitBreakerERC20Test is UseImmutableCreate2Factory {
 
         token.setPaused(true);
 
-        vm.expectRevert(CircuitBreakerERC20.TokenPaused.selector);
+        vm.expectRevert(PartyERC20.TokenPaused.selector);
         vm.prank(tokenHolder);
         token.transfer(address(2), 100);
     }
@@ -87,7 +87,7 @@ contract CircuitBreakerERC20Test is UseImmutableCreate2Factory {
     function test_setMetadata_onlyNFTHolder() external {
         ownershipNft.transferFrom(address(this), address(2), 1);
 
-        vm.expectRevert(CircuitBreakerERC20.Unauthorized.selector);
+        vm.expectRevert(PartyERC20.Unauthorized.selector);
         token.setMetadata("NewImage", "NewDescription");
     }
 

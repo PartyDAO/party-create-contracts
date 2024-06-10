@@ -3,11 +3,11 @@ pragma solidity ^0.8.25;
 
 import "forge-std/src/Test.sol";
 
-import "../src/PartySwapCrowdfund.sol";
+import "../src/PartyTokenLauncher.sol";
 
-contract PartySwapCrowdfundTest is Test {
-    PartySwapCrowdfund crowdfund;
-    PartySwapCreatorERC721 creatorNFT;
+contract PartyTokenLauncherTest is Test {
+    PartyTokenLauncher crowdfund;
+    PartyTokenAdminERC721 creatorNFT;
     address payable partyDAO;
 
     uint96 contributionFee = 0.00055 ether;
@@ -15,8 +15,8 @@ contract PartySwapCrowdfundTest is Test {
 
     function setUp() public {
         partyDAO = payable(vm.createWallet("Party DAO").addr);
-        creatorNFT = new PartySwapCreatorERC721("PartySwapCreatorERC721", "PSC721", address(this));
-        crowdfund = new PartySwapCrowdfund(partyDAO, creatorNFT, contributionFee, withdrawalFeeBps);
+        creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
+        crowdfund = new PartyTokenLauncher(partyDAO, creatorNFT, contributionFee, withdrawalFeeBps);
         creatorNFT.setIsMinter(address(crowdfund), true);
     }
 
@@ -31,7 +31,7 @@ contract PartySwapCrowdfundTest is Test {
         vm.deal(contributor2, 1 ether);
 
         // Step 1: Create a new crowdfund
-        PartySwapCrowdfund.ERC20Args memory erc20Args = PartySwapCrowdfund.ERC20Args({
+        PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
             name: "TestToken",
             symbol: "TT",
             image: "test_image_url",
@@ -39,7 +39,7 @@ contract PartySwapCrowdfundTest is Test {
             totalSupply: 1_000_000_000e18
         });
 
-        PartySwapCrowdfund.CrowdfundArgs memory crowdfundArgs = PartySwapCrowdfund.CrowdfundArgs({
+        PartyTokenLauncher.CrowdfundArgs memory crowdfundArgs = PartyTokenLauncher.CrowdfundArgs({
             numTokensForLP: 500_000_000e18,
             numTokensForDistribution: 300_000_000e18,
             numTokensForRecipient: 200_000_000e18,
@@ -108,8 +108,8 @@ contract PartySwapCrowdfundTest is Test {
         expectedTotalContributions += remainingContribution;
         expectedPartyDAOBalance += contributionFee;
         {
-            PartySwapCrowdfund.CrowdfundLifecycle lifecycle = crowdfund.getCrowdfundLifecycle(crowdfundId);
-            assertTrue(lifecycle == PartySwapCrowdfund.CrowdfundLifecycle.Finalized);
+            PartyTokenLauncher.CrowdfundLifecycle lifecycle = crowdfund.getCrowdfundLifecycle(crowdfundId);
+            assertTrue(lifecycle == PartyTokenLauncher.CrowdfundLifecycle.Finalized);
 
             uint96 expectedTokensReceived =
                 crowdfund.convertETHContributedToTokensReceived(crowdfundId, remainingContribution);
