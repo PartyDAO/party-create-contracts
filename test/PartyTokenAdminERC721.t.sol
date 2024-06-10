@@ -20,7 +20,7 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
 
     function test_tokenURI_validateJSONAfterSucceeded() external {
         uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
-        adminNft.setCrowdfundSucceeded(tokenId);
+        adminNft.setLaunchSucceeded(tokenId);
         _lintJSON(adminNft.tokenURI(tokenId));
     }
 
@@ -39,19 +39,19 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
 
     event MetadataUpdate(uint256 _tokenId);
 
-    function test_setCrowdfundSucceeded_eventEmitted() external {
+    function test_setLaunchSucceeded_eventEmitted() external {
         uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
 
         vm.expectEmit(true, true, true, true);
         emit MetadataUpdate(tokenId);
-        adminNft.setCrowdfundSucceeded(tokenId);
+        adminNft.setLaunchSucceeded(tokenId);
     }
 
-    function test_setCrowdfundSucceeded_onlyMinter() external {
+    function test_setLaunchSucceeded_onlyMinter() external {
         uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
         adminNft.setIsMinter(address(this), false);
         vm.expectRevert(PartyTokenAdminERC721.OnlyMinter.selector);
-        adminNft.setCrowdfundSucceeded(tokenId);
+        adminNft.setLaunchSucceeded(tokenId);
     }
 
     function test_VERSION() external {

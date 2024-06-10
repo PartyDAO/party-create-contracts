@@ -17,9 +17,9 @@ contract PartyTokenLauncher is Ownable {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
 
-    event CrowdfundCreated(uint32 indexed crowdfundId, address indexed creator, IERC20 indexed token);
+    event LaunchCreated(uint32 indexed launchId, address indexed creator, IERC20 indexed token);
     event Contribute(
-        uint32 indexed crowdfundId,
+        uint32 indexed launchId,
         address indexed contributor,
         string comment,
         uint96 ethContributed,
@@ -27,19 +27,19 @@ contract PartyTokenLauncher is Ownable {
         uint96 contributionFee
     );
     event Ragequit(
-        uint32 indexed crowdfundId,
+        uint32 indexed launchId,
         address indexed contributor,
         uint96 tokensReceived,
         uint96 ethContributed,
         uint96 withdrawalFee
     );
-    event Finalized(uint32 indexed crowdfundId, address tokenLiquidityPool);
+    event Finalized(uint32 indexed launchId, address tokenLiquidityPool);
     event ContributionFeeSet(uint96 oldContributionFee, uint96 newContributionFee);
     event WithdrawalFeeBpsSet(uint16 oldWithdrawalFeeBps, uint16 newWithdrawalFeeBps);
 
-    error CrowdfundInvalid();
+    error LaunchInvalid();
 
-    enum CrowdfundLifecycle {
+    enum LaunchLifecycle {
         Active,
         Finalized
     }
@@ -52,7 +52,7 @@ contract PartyTokenLauncher is Ownable {
         uint96 totalSupply;
     }
 
-    struct CrowdfundArgs {
+    struct LaunchArgs {
         uint96 numTokensForLP;
         uint96 numTokensForDistribution;
         uint96 numTokensForRecipient;
@@ -61,7 +61,7 @@ contract PartyTokenLauncher is Ownable {
         address recipient;
     }
 
-    struct Crowdfund {
+    struct Launch {
         IERC20 token;
         uint96 targetContribution;
         uint96 totalContributions;
@@ -74,12 +74,12 @@ contract PartyTokenLauncher is Ownable {
 
     PartyTokenAdminERC721 public immutable TOKEN_ADMIN_ERC721;
 
-    uint32 public numOfCrowdfunds;
+    uint32 public numOfLaunches;
     uint96 public contributionFee;
     uint16 public withdrawalFeeBps;
 
     /// @dev IDs start at 1.
-    mapping(uint32 => Crowdfund) public crowdfunds;
+    mapping(uint32 => Launch) public launches;
 
     constructor(
         address payable partyDAO,
@@ -94,23 +94,23 @@ contract PartyTokenLauncher is Ownable {
         withdrawalFeeBps = withdrawalFeeBps_;
     }
 
-    function createCrowdfund(
+    function createLaunch(
         ERC20Args memory erc20Args,
-        CrowdfundArgs memory crowdfundArgs
+        LaunchArgs memory launchArgs
     )
         external
         payable
         returns (uint32 id)
     {
-        require(crowdfundArgs.targetContribution > 0, "Target contribution must be greater than zero");
+        require(launchArgs.targetContribution > 0, "Target contribution must be greater than zero");
         require(
             erc20Args.totalSupply
-                >= crowdfundArgs.numTokensForLP + crowdfundArgs.numTokensForDistribution
-                    + crowdfundArgs.numTokensForRecipient,
+                >= launchArgs.numTokensForLP + launchArgs.numTokensForDistribution
+                    + launchArgs.numTokensForRecipient,
             "Total supply must be at least the sum of tokens"
         );
 
-        id = ++numOfCrowdfunds;
+        id = ++numOfLaunches;
 
         uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(erc20Args.name, erc20Args.image, msg.sender);
 
@@ -128,43 +128,43 @@ contract PartyTokenLauncher is Ownable {
         );
         token.setPaused(true);
 
-        // Initialize new crowdfund.
-        Crowdfund memory crowdfund = crowdfunds[id] = Crowdfund({
+        // Initialize new launch.
+        Launch memory launch = launches[id] = Launch({
             token: token,
-            targetContribution: crowdfundArgs.targetContribution,
+            targetContribution: launchArgs.targetContribution,
             totalContributions: 0,
-            numTokensForLP: crowdfundArgs.numTokensForLP,
-            numTokensForDistribution: crowdfundArgs.numTokensForDistribution,
-            numTokensForRecipient: crowdfundArgs.numTokensForRecipient,
-            merkleRoot: crowdfundArgs.merkleRoot,
-            recipient: crowdfundArgs.recipient
+            numTokensForLP: launchArgs.numTokensForLP,
+            numTokensForDistribution: launchArgs.numTokensForDistribution,
+            numTokensForRecipient: launchArgs.numTokensForRecipient,
+            merkleRoot: launchArgs.merkleRoot,
+            recipient: launchArgs.recipient
         });
 
         // Contribute initial amount, if any, and attribute the contribution to the creator
         uint96 initialContribution = msg.value.toUint96();
         if (initialContribution > 0) {
-            (crowdfund,) = _contribute(id, crowdfund, msg.sender, initialContribution, "");
+            (launch,) = _contribute(id, launch, msg.sender, initialContribution, "");
         }
 
-        emit CrowdfundCreated(id, msg.sender, token);
+        emit LaunchCreated(id, msg.sender, token);
     }
 
-    function getCrowdfundLifecycle(uint32 crowdfundId) public view returns (CrowdfundLifecycle) {
-        return _getCrowdfundLifecycle(crowdfunds[crowdfundId]);
+    function getLaunchLifecycle(uint32 launchId) public view returns (LaunchLifecycle) {
+        return _getLaunchLifecycle(launches[launchId]);
     }
 
-    function _getCrowdfundLifecycle(Crowdfund memory crowdfund) private pure returns (CrowdfundLifecycle) {
-        if (crowdfund.targetContribution == 0) {
-            revert CrowdfundInvalid();
-        } else if (crowdfund.totalContributions >= crowdfund.targetContribution) {
-            return CrowdfundLifecycle.Finalized;
+    function _getLaunchLifecycle(Launch memory launch) private pure returns (LaunchLifecycle) {
+        if (launch.targetContribution == 0) {
+            revert LaunchInvalid();
+        } else if (launch.totalContributions >= launch.targetContribution) {
+            return LaunchLifecycle.Finalized;
         } else {
-            return CrowdfundLifecycle.Active;
+            return LaunchLifecycle.Active;
         }
     }
 
     function contribute(
-        uint32 crowdfundId,
+        uint32 launchId,
         string calldata comment,
         bytes32[] calldata merkleProof
     )
@@ -172,84 +172,84 @@ contract PartyTokenLauncher is Ownable {
         payable
         returns (uint96 tokensReceived)
     {
-        Crowdfund memory crowdfund = crowdfunds[crowdfundId];
+        Launch memory launch = launches[launchId];
 
         // Verify merkle proof if merkle root is set
-        if (crowdfund.merkleRoot != bytes32(0)) {
+        if (launch.merkleRoot != bytes32(0)) {
             bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
-            require(MerkleProof.verifyCalldata(merkleProof, crowdfund.merkleRoot, leaf), "Invalid merkle proof");
+            require(MerkleProof.verifyCalldata(merkleProof, launch.merkleRoot, leaf), "Invalid merkle proof");
         }
 
-        (crowdfund, tokensReceived) = _contribute(crowdfundId, crowdfund, msg.sender, msg.value.toUint96(), comment);
+        (launch, tokensReceived) = _contribute(launchId, launch, msg.sender, msg.value.toUint96(), comment);
     }
 
     function _contribute(
         uint32 id,
-        Crowdfund memory crowdfund,
+        Launch memory launch,
         address contributor,
         uint96 amount,
         string memory comment
     )
         private
-        returns (Crowdfund memory, uint96)
+        returns (Launch memory, uint96)
     {
-        require(_getCrowdfundLifecycle(crowdfund) == CrowdfundLifecycle.Active, "Crowdfund is not active");
+        require(_getLaunchLifecycle(launch) == LaunchLifecycle.Active, "Launch is not active");
         require(amount > 0, "Contribution must be greater than zero");
 
         uint96 contributionFee_ = contributionFee;
         uint96 contributionAmount = amount - contributionFee_;
 
-        uint96 newTotalContributions = crowdfund.totalContributions + contributionAmount;
-        require(newTotalContributions <= crowdfund.targetContribution, "Contribution exceeds amount to reach target");
+        uint96 newTotalContributions = launch.totalContributions + contributionAmount;
+        require(newTotalContributions <= launch.targetContribution, "Contribution exceeds amount to reach target");
 
         // Update state
-        crowdfunds[id].totalContributions = crowdfund.totalContributions = newTotalContributions;
+        launches[id].totalContributions = launch.totalContributions = newTotalContributions;
 
         uint96 tokensReceived = _convertETHContributedToTokensReceived(
-            contributionAmount, crowdfund.targetContribution, crowdfund.numTokensForLP
+            contributionAmount, launch.targetContribution, launch.numTokensForLP
         );
 
         emit Contribute(id, contributor, comment, contributionAmount, tokensReceived, contributionFee_);
 
-        // Check if the crowdfund has reached its target and finalize if necessary
-        if (_getCrowdfundLifecycle(crowdfund) == CrowdfundLifecycle.Finalized) {
-            _finalize(crowdfund);
+        // Check if the launch has reached its target and finalize if necessary
+        if (_getLaunchLifecycle(launch) == LaunchLifecycle.Finalized) {
+            _finalize(launch);
         }
 
         // Transfer the tokens to the contributor
-        crowdfund.token.transfer(contributor, tokensReceived);
+        launch.token.transfer(contributor, tokensReceived);
 
         // Transfer the ETH contribution fee to PartyDAO
         payable(owner()).call{ value: contributionFee_, gas: 1e5 }("");
 
-        return (crowdfund, tokensReceived);
+        return (launch, tokensReceived);
     }
 
     function convertETHContributedToTokensReceived(
-        uint32 crowdfundId,
+        uint32 launchId,
         uint96 ethContributed
     )
         external
         view
         returns (uint96 tokensReceived)
     {
-        Crowdfund memory crowdfund = crowdfunds[crowdfundId];
+        Launch memory launch = launches[launchId];
         tokensReceived = _convertETHContributedToTokensReceived(
-            ethContributed, crowdfund.targetContribution, crowdfund.numTokensForLP
+            ethContributed, launch.targetContribution, launch.numTokensForLP
         );
     }
 
     function convertTokensReceivedToETHContributed(
-        uint32 crowdfundId,
+        uint32 launchId,
         uint96 tokensReceived
     )
         external
         view
         returns (uint96 ethContributed)
     {
-        Crowdfund memory crowdfund = crowdfunds[crowdfundId];
+        Launch memory launch = launches[launchId];
         ethContributed = _convertTokensReceivedToETHContributed(
-            tokensReceived, crowdfund.targetContribution, crowdfund.numTokensForLP
+            tokensReceived, launch.targetContribution, launch.numTokensForLP
         );
     }
 
@@ -281,33 +281,33 @@ contract PartyTokenLauncher is Ownable {
         ethContributed = Math.mulDiv(tokensReceived, targetContribution, numTokensForLP).toUint96();
     }
 
-    // TODO: When the crowdfund is finalized, the contract integrates with Uniswap V3 to provide liquidity. The
+    // TODO: When the launch is finalized, the contract integrates with Uniswap V3 to provide liquidity. The
     // remaining token supply is transferred to the liquidity pool.
     // TODO: The LP tokens are locked in a fee locker contract
     // TODO: Fee Collector needs to be aware of LP NFT owner
     // TODO: The LP Fee NFT updates an attribute to indicate its been successfully upon finalization
     // TODO: When the LP position is created, the tokens become transferable.
     // TODO: Unpause token and abdicate ownership
-    function _finalize(Crowdfund memory crowdfund) private {
+    function _finalize(Launch memory launch) private {
         // Transfer tokens to recipient
-        crowdfund.token.transfer(crowdfund.recipient, crowdfund.numTokensForRecipient);
+        launch.token.transfer(launch.recipient, launch.numTokensForRecipient);
     }
 
-    function ragequit(uint32 crowdfundId) external {
-        Crowdfund memory crowdfund = crowdfunds[crowdfundId];
-        require(_getCrowdfundLifecycle(crowdfund) == CrowdfundLifecycle.Active, "Crowdfund is not active");
+    function ragequit(uint32 launchId) external {
+        Launch memory launch = launches[launchId];
+        require(_getLaunchLifecycle(launch) == LaunchLifecycle.Active, "Launch is not active");
 
-        uint96 tokensReceived = uint96(crowdfund.token.balanceOf(msg.sender));
+        uint96 tokensReceived = uint96(launch.token.balanceOf(msg.sender));
         uint96 ethContributed = _convertTokensReceivedToETHContributed(
-            tokensReceived, crowdfund.targetContribution, crowdfund.numTokensForLP
+            tokensReceived, launch.targetContribution, launch.numTokensForLP
         );
         uint96 withdrawalFee = (ethContributed * withdrawalFeeBps) / 1e4;
 
         // Pull tokens from sender
-        crowdfund.token.transferFrom(msg.sender, address(this), tokensReceived);
+        launch.token.transferFrom(msg.sender, address(this), tokensReceived);
 
-        // Update crowdfund state
-        crowdfunds[crowdfundId].totalContributions -= ethContributed;
+        // Update launch state
+        launches[launchId].totalContributions -= ethContributed;
 
         // Transfer withdrawal fee to PartyDAO
         payable(owner()).call{ value: withdrawalFee, gas: 1e5 }("");
@@ -315,7 +315,7 @@ contract PartyTokenLauncher is Ownable {
         // Transfer ETH to sender
         payable(msg.sender).call{ value: ethContributed - withdrawalFee, gas: 1e5 }("");
 
-        emit Ragequit(crowdfundId, msg.sender, tokensReceived, ethContributed - withdrawalFee, withdrawalFee);
+        emit Ragequit(launchId, msg.sender, tokensReceived, ethContributed - withdrawalFee, withdrawalFee);
     }
 
     function setContributionFee(uint96 contributionFee_) external onlyOwner {

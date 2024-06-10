@@ -16,7 +16,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     struct TokenMetadata {
         string name;
         string image;
-        bool crowdfundSuccessful;
+        bool launchSuccessful;
     }
 
     /**
@@ -69,11 +69,11 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     }
 
     /**
-     * @notice Set the metadata of a token indicating the crowdfund succeeded
-     * @param tokenId The token ID for which the crowdfund succeeded
+     * @notice Set the metadata of a token indicating the launch succeeded
+     * @param tokenId The token ID for which the launch succeeded
      */
-    function setCrowdfundSucceeded(uint256 tokenId) external onlyMinter {
-        tokenMetadatas[tokenId].crowdfundSuccessful = true;
+    function setLaunchSucceeded(uint256 tokenId) external onlyMinter {
+        tokenMetadatas[tokenId].launchSuccessful = true;
         emit MetadataUpdate(tokenId);
     }
 
@@ -90,8 +90,8 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
             tokenMetadata.name,
             "\",\"image\":\"",
             tokenMetadata.image,
-            "\",\"attributes\":[{\"crowdfund_succeeded\":",
-            tokenMetadata.crowdfundSuccessful ? "true" : "false",
+            "\",\"attributes\":[{\"launch_succeeded\":",
+            tokenMetadata.launchSuccessful ? "true" : "false",
             "}]}"
         );
     }
