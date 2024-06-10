@@ -6,7 +6,7 @@ import { ERC20Votes, ERC20 } from "@openzeppelin/contracts/token/ERC20/extension
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract CircuitBreakerERC20 is ERC20Permit, ERC20Votes, Ownable {
+contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
     event MetadataSet(string image, string description);
     event PausedSet(bool paused);
 
