@@ -2,6 +2,8 @@ name: "CI"
 
 env:
   API_KEY_ALCHEMY: ${{ secrets.API_KEY_ALCHEMY }}
+  SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+  ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
   FOUNDRY_PROFILE: "ci"
 
 on:
@@ -84,7 +86,7 @@ jobs:
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
-        run: "forge test --ffi"
+        run: "forge test -f $SEPOLIA_RPC_URL --ffi -vvv"
 
       - name: "Add test summary"
         run: |
@@ -108,7 +110,7 @@ jobs:
         run: "bun install"
 
       - name: "Run coverage"
-        run: "COVERAGE=true forge coverage --report lcov"
+        run: "COVERAGE=true forge coverage -f $SEPOLIA_RPC_URL --report lcov"
 
       - name: "Upload coverage"
         uses: codecov/codecov-action@v4.0.1
