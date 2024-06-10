@@ -4,17 +4,17 @@ pragma solidity >=0.8.25 <0.9.0;
 import { CircuitBreakerERC20 } from "../src/CircuitBreakerERC20.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { UseImmutableCreate2Factory } from "./util/UseImmutableCreate2Factory.t.sol";
-import { PartySwapCreatorERC721 } from "../src/PartySwapCreatorERC721.sol";
+import { PartyTokenAdminERC721 } from "../src/PartyTokenAdminERC721.sol";
 
 contract CircuitBreakerERC20Test is UseImmutableCreate2Factory {
     CircuitBreakerERC20 public token;
-    PartySwapCreatorERC721 public ownershipNft;
+    PartyTokenAdminERC721 public ownershipNft;
 
     event MetadataSet(string image, string description);
 
     function setUp() public override {
         super.setUp();
-        ownershipNft = new PartySwapCreatorERC721("Ownership NFT", "ON", address(this));
+        ownershipNft = new PartyTokenAdminERC721("Ownership NFT", "ON", address(this));
         token = CircuitBreakerERC20(
             factory.safeCreate2(
                 bytes32(0),

@@ -6,7 +6,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { CircuitBreakerERC20 } from "./CircuitBreakerERC20.sol";
-import { PartySwapCreatorERC721 } from "./PartySwapCreatorERC721.sol";
+import { PartyTokenAdminERC721 } from "./PartyTokenAdminERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // TODO: Add functions to move ETH from one token to another with one fn call?
@@ -72,7 +72,7 @@ contract PartySwapCrowdfund is Ownable {
         address recipient;
     }
 
-    PartySwapCreatorERC721 public immutable CREATOR_NFT;
+    PartyTokenAdminERC721 public immutable TOKEN_ADMIN_ERC721;
 
     uint32 public numOfCrowdfunds;
     uint96 public contributionFee;
@@ -83,13 +83,13 @@ contract PartySwapCrowdfund is Ownable {
 
     constructor(
         address payable partyDAO,
-        PartySwapCreatorERC721 creatorNFT,
+        PartyTokenAdminERC721 tokenAdminERC721,
         uint96 contributionFee_,
         uint16 withdrawalFeeBps_
     )
         Ownable(partyDAO)
     {
-        CREATOR_NFT = creatorNFT;
+        TOKEN_ADMIN_ERC721 = tokenAdminERC721;
         contributionFee = contributionFee_;
         withdrawalFeeBps = withdrawalFeeBps_;
     }
@@ -112,7 +112,7 @@ contract PartySwapCrowdfund is Ownable {
 
         id = ++numOfCrowdfunds;
 
-        uint256 lpOwnershipNFTId = CREATOR_NFT.mint(erc20Args.name, erc20Args.image, msg.sender);
+        uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(erc20Args.name, erc20Args.image, msg.sender);
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
         CircuitBreakerERC20 token = new CircuitBreakerERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
@@ -123,8 +123,8 @@ contract PartySwapCrowdfund is Ownable {
             erc20Args.totalSupply,
             address(this),
             address(this),
-            CREATOR_NFT,
-            lpOwnershipNFTId
+            TOKEN_ADMIN_ERC721,
+            tokenAdminId
         );
         token.setPaused(true);
 

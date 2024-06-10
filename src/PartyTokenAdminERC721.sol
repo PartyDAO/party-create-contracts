@@ -5,7 +5,7 @@ import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC4906 } from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 
-contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
+contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     error OnlyMinter();
 
     modifier onlyMinter() {
@@ -101,6 +101,6 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
      * change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.2.0";
+        return "0.3.0";
     }
 }
