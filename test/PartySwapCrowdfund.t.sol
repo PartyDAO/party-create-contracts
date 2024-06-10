@@ -48,6 +48,26 @@ contract PartySwapCrowdfundTest is Test {
         creatorNFT.setIsMinter(address(crowdfund), true);
     }
 
+    function test_constructor_works() public {
+        assertEq(address(crowdfund.owner()), partyDAO, "Party DAO address should be correctly set");
+        assertEq(address(crowdfund.CREATOR_NFT()), address(creatorNFT), "Creator NFT address should be correctly set");
+        assertEq(
+            address(crowdfund.POSTION_MANAGER()),
+            address(positionManager),
+            "Position Manager address should be correctly set"
+        );
+        assertEq(
+            address(crowdfund.UNISWAP_FACTORY()),
+            address(uniswapFactory),
+            "Uniswap Factory address should be correctly set"
+        );
+        assertEq(address(crowdfund.WETH()), weth, "WETH address should be correctly set");
+        assertEq(crowdfund.POOL_FEE(), poolFee, "Pool fee should be correctly set");
+        assertEq(address(crowdfund.positionLocker()), positionLocker, "Position Locker address should be correctly set");
+        assertEq(crowdfund.contributionFee(), contributionFee, "Contribution fee should be correctly set");
+        assertEq(crowdfund.withdrawalFeeBps(), withdrawalFeeBps, "Withdrawal fee basis points should be correctly set");
+    }
+
     function test_createCrowdfund_works() public returns (uint32 crowdfundId) {
         address creator = vm.createWallet("Creator").addr;
         vm.deal(creator, 1 ether);
