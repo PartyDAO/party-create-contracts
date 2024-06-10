@@ -20,6 +20,8 @@ contract WETH9 {
     string public symbol = "WETH";
     uint8 public decimals = 18;
 
+    event Approval(address indexed src, address indexed guy, uint256 wad);
+    event Transfer(address indexed src, address indexed dst, uint256 wad);
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
 
