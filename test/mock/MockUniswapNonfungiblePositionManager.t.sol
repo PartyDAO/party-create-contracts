@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8;
+pragma solidity ^0.8.25;
 
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
@@ -21,9 +21,11 @@ contract MockUniswapNonfungiblePositionManager is ERC721, IMulticall, Test {
         FACTORY = MockUniswapV3Factory(factory);
     }
 
-    function mint(
-        INonfungiblePositionManager.MintParams calldata params
-    ) external payable returns (uint256 tokenId, uint128, uint256, uint256) {
+    function mint(INonfungiblePositionManager.MintParams calldata params)
+        external
+        payable
+        returns (uint256 tokenId, uint128, uint256, uint256)
+    {
         tokenId = ++lastTokenId;
 
         address pool = FACTORY.getPool(params.token0, params.token1, params.fee);
@@ -46,7 +48,7 @@ contract MockUniswapNonfungiblePositionManager is ERC721, IMulticall, Test {
         _mint(params.recipient, tokenId);
     }
 
-    function refundETH() external payable {}
+    function refundETH() external payable { }
 
     function multicall(bytes[] calldata calls) external payable returns (bytes[] memory results) {
         results = new bytes[](calls.length);
@@ -64,9 +66,7 @@ contract MockUniswapNonfungiblePositionManager is ERC721, IMulticall, Test {
         uint128 amount1Max;
     }
 
-    function collect(
-        CollectParams calldata params
-    ) external payable returns (uint256 amount0, uint256 amount1) {
+    function collect(CollectParams calldata params) external payable returns (uint256 amount0, uint256 amount1) {
         require(params.tokenId <= lastTokenId, "Nonexistent");
         IERC20 token0 = _token[params.tokenId];
         IERC20 token1 = IERC20(address(WETH));
@@ -86,9 +86,7 @@ contract MockUniswapNonfungiblePositionManager is ERC721, IMulticall, Test {
         deal(address(token1), params.recipient, amount1);
     }
 
-    function positions(
-        uint256 tokenId
-    )
+    function positions(uint256 tokenId)
         external
         view
         returns (

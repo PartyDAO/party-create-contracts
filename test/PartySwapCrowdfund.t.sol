@@ -70,7 +70,7 @@ contract PartySwapCrowdfundTest is Test {
         });
 
         vm.prank(creator);
-        crowdfundId = crowdfund.createCrowdfund{value: 1 ether}(erc20Args, crowdfundArgs);
+        crowdfundId = crowdfund.createCrowdfund{ value: 1 ether }(erc20Args, crowdfundArgs);
 
         assertTrue(crowdfund.getCrowdfundLifecycle(crowdfundId) == PartySwapCrowdfund.CrowdfundLifecycle.Active);
         (IERC20 token,, uint96 totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);
@@ -89,7 +89,7 @@ contract PartySwapCrowdfundTest is Test {
         vm.deal(contributor, 5 ether);
 
         vm.prank(contributor);
-        crowdfund.contribute{value: 5 ether}(crowdfundId, "Adding funds", new bytes32[](0));
+        crowdfund.contribute{ value: 5 ether }(crowdfundId, "Adding funds", new bytes32[](0));
 
         (IERC20 token,, uint96 totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);
         uint96 expectedTokensReceived =
@@ -111,7 +111,7 @@ contract PartySwapCrowdfundTest is Test {
         crowdfund.ragequit(crowdfundId);
 
         uint96 expectedETHReturned = crowdfund.convertTokensReceivedToETHContributed(crowdfundId, tokenBalance);
-        uint96 withdrawalFee = (expectedETHReturned * withdrawalFeeBps) / 10000;
+        uint96 withdrawalFee = (expectedETHReturned * withdrawalFeeBps) / 10_000;
         assertEq(creator.balance, expectedETHReturned - withdrawalFee);
         assertEq(token.balanceOf(creator), 0);
         assertEq(partyDAO.balance, contributionFee + withdrawalFee);
@@ -122,12 +122,12 @@ contract PartySwapCrowdfundTest is Test {
     function test_finalize_works() public {
         uint32 crowdfundId = test_createCrowdfund_works();
         address contributor = vm.createWallet("Final Contributor").addr;
-        (IERC20 token,uint96 targetContribution, uint96 totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);
+        (IERC20 token, uint96 targetContribution, uint96 totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);
         uint96 remainingContribution = targetContribution - totalContributions + contributionFee;
         vm.deal(contributor, remainingContribution);
 
         vm.prank(contributor);
-        crowdfund.contribute{value: remainingContribution}(crowdfundId, "Finalize", new bytes32[](0));
+        crowdfund.contribute{ value: remainingContribution }(crowdfundId, "Finalize", new bytes32[](0));
 
         assertTrue(crowdfund.getCrowdfundLifecycle(crowdfundId) == PartySwapCrowdfund.CrowdfundLifecycle.Finalized);
         (,, totalContributions,,,,,) = crowdfund.crowdfunds(crowdfundId);
