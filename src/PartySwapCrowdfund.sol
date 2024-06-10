@@ -21,7 +21,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
 
-    event CrowdfundCreated(uint32 indexed crowdfundId, address indexed creator, IERC20 indexed token);
+    event CrowdfundCreated(uint32 indexed crowdfundId, address indexed creator, IERC20 indexed token, address tokenLiquidityPool);
     event Contribute(
         uint32 indexed crowdfundId,
         address indexed contributor,
@@ -37,7 +37,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
         uint96 ethContributed,
         uint96 withdrawalFee
     );
-    event Finalized(uint32 indexed crowdfundId, address tokenLiquidityPool, uint256 liquidityPoolTokenId);
+    event Finalized(uint32 indexed crowdfundId, uint256 liquidityPoolTokenId);
     event PositionLockerSet(address oldPositionLocker, address newPositionLocker);
     event ContributionFeeSet(uint96 oldContributionFee, uint96 newContributionFee);
     event WithdrawalFeeBpsSet(uint16 oldWithdrawalFeeBps, uint16 newWithdrawalFeeBps);
@@ -173,7 +173,15 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
             (crowdfund,) = _contribute(id, crowdfund, msg.sender, initialContribution, "");
         }
 
-        emit CrowdfundCreated(id, msg.sender, token);
+        // Initialize empty Uniswap pool. Will be liquid after crowdfund is successful and finalized.
+        (uint256 amount0, uint256 amount1) = WETH < address(token)
+            ? (crowdfund.targetContribution, crowdfund.numTokensForLP)
+            : (crowdfund.numTokensForLP, crowdfund.targetContribution);
+
+        address pool = UNISWAP_FACTORY.createPool(address(token), WETH, POOL_FEE);
+        IUniswapV3Pool(pool).initialize(_calculateSqrtPriceX96(amount0, amount1));
+
+        emit CrowdfundCreated(id, msg.sender, token, pool);
     }
 
     function getCrowdfundLifecycle(uint32 crowdfundId) public view returns (CrowdfundLifecycle) {
@@ -317,13 +325,6 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
             ? (crowdfund.targetContribution, crowdfund.numTokensForLP)
             : (crowdfund.numTokensForLP, crowdfund.targetContribution);
 
-        // Create and initialize the Uniswap V3 pool if it doesn't exist
-        address pool = UNISWAP_FACTORY.getPool(address(crowdfund.token), WETH, POOL_FEE);
-        if (pool == address(0)) {
-            pool = UNISWAP_FACTORY.createPool(address(crowdfund.token), WETH, POOL_FEE);
-            IUniswapV3Pool(pool).initialize(_calculateSqrtPriceX96(amount0, amount1));
-        }
-
         // Add liquidity to the pool
         crowdfund.token.approve(address(POSTION_MANAGER), crowdfund.numTokensForLP);
         (uint256 tokenId,,,) = POSTION_MANAGER.mint{ value: crowdfund.targetContribution }(
@@ -361,7 +362,7 @@ contract PartySwapCrowdfund is Ownable, IERC721Receiver {
         // Renounce ownership
         crowdfund.token.renounceOwnership();
 
-        emit Finalized(crowdfundId, pool, tokenId);
+        emit Finalized(crowdfundId, tokenId);
     }
 
     function _calculateSqrtPriceX96(uint256 amount0, uint256 amount1) private pure returns (uint160) {

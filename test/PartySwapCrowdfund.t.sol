@@ -48,7 +48,7 @@ contract PartySwapCrowdfundTest is Test {
         creatorNFT.setIsMinter(address(crowdfund), true);
     }
 
-    function test_constructor_works() public {
+    function test_constructor_works() public view {
         assertEq(address(crowdfund.owner()), partyDAO, "Party DAO address should be correctly set");
         assertEq(address(crowdfund.CREATOR_NFT()), address(creatorNFT), "Creator NFT address should be correctly set");
         assertEq(
@@ -189,7 +189,7 @@ contract PartySwapCrowdfundTest is Test {
         assertEq(crowdfund.withdrawalFeeBps(), newWithdrawalFeeBps);
     }
 
-    function test_VERSION_works() public {
+    function test_VERSION_works() public view {
         assertEq(crowdfund.VERSION(), "0.3.0");
     }
 }
