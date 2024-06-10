@@ -68,8 +68,12 @@ contract NFTBoundLPLocker is IERC721Receiver, ReentrancyGuard {
         POSITION_MANAGER.approve(address(UNCX), tokenId);
         uint256 lockId = UNCX.lock(lockParams);
 
+        {
+            (, bytes memory res) =
+                address(POSITION_MANAGER).staticcall(abi.encodeCall(POSITION_MANAGER.positions, (tokenId)));
+            (,, lpInfos[lockId].token0, lpInfos[lockId].token1) = abi.decode(res, (uint96, address, address, address));
+        }
         lpInfos[lockId].partyTokenAdminId = lpInfo.partyTokenAdminId;
-        (,, lpInfos[lockId].token0, lpInfos[lockId].token1,,,,,,,,) = POSITION_MANAGER.positions(tokenId);
 
         uint256 token0TotalBps;
         uint256 token1TotalBps;
