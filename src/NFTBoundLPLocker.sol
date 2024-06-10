@@ -28,21 +28,21 @@ contract NFTBoundLPLocker is IERC721Receiver, ReentrancyGuard {
     struct LPInfo {
         address token0;
         address token1;
-        uint256 lpOwnerTokenId;
+        uint256 partyTokenAdminId;
         AdditionalFeeRecipient[] additionalFeeRecipients;
     }
 
     INonfungiblePositionManager public immutable POSITION_MANAGER;
     IWETH public immutable WETH;
-    IERC721 public immutable LP_OWNER_NFT;
+    IERC721 public immutable PARTY_TOKEN_ADMIN;
     IUNCX public immutable UNCX;
 
     mapping(uint256 => LPInfo) public lpInfos;
 
-    constructor(INonfungiblePositionManager positionManager, IWETH weth, IERC721 lpOwnerNft, IUNCX uncx) {
+    constructor(INonfungiblePositionManager positionManager, IWETH weth, IERC721 partyTokenAdmin, IUNCX uncx) {
         POSITION_MANAGER = positionManager;
         WETH = weth;
-        LP_OWNER_NFT = lpOwnerNft;
+        PARTY_TOKEN_ADMIN = partyTokenAdmin;
         UNCX = uncx;
     }
 
@@ -68,7 +68,7 @@ contract NFTBoundLPLocker is IERC721Receiver, ReentrancyGuard {
         POSITION_MANAGER.approve(address(UNCX), tokenId);
         uint256 lockId = UNCX.lock(lockParams);
 
-        lpInfos[lockId].lpOwnerTokenId = lpInfo.lpOwnerTokenId;
+        lpInfos[lockId].partyTokenAdminId = lpInfo.partyTokenAdminId;
         (,, lpInfos[lockId].token0, lpInfos[lockId].token1,,,,,,,,) = POSITION_MANAGER.positions(tokenId);
 
         uint256 token0TotalBps;
@@ -122,7 +122,7 @@ contract NFTBoundLPLocker is IERC721Receiver, ReentrancyGuard {
             }
         }
 
-        address remainingReceiver = LP_OWNER_NFT.ownerOf(lpInfo.lpOwnerTokenId);
+        address remainingReceiver = PARTY_TOKEN_ADMIN.ownerOf(lpInfo.partyTokenAdminId);
 
         if (lpInfo.token0 == address(WETH)) {
             remainingReceiver.call{ value: address(this).balance, gas: 10_000 }("");
