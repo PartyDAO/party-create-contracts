@@ -15,9 +15,6 @@ contract PartyTokenLauncherForkTest is Test {
     address payable public weth;
     uint24 public poolFee;
 
-    uint96 contributionFee = 0.00055 ether;
-    uint16 withdrawalFeeBps = 100; // 1%
-
     function setUp() public {
         positionManager = INonfungiblePositionManager(0x1238536071E1c677A632429e3655c799b22cDA52);
         uniswapFactory = IUniswapV3Factory(0x0227628f3F023bb0B980b67D528571c95c6DaC1c);
@@ -27,17 +24,8 @@ contract PartyTokenLauncherForkTest is Test {
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         positionLocker = vm.createWallet("Position Locker").addr;
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
-        launch = new PartyTokenLauncher(
-            partyDAO,
-            creatorNFT,
-            positionManager,
-            uniswapFactory,
-            weth,
-            poolFee,
-            positionLocker,
-            contributionFee,
-            withdrawalFeeBps
-        );
+        launch =
+            new PartyTokenLauncher(partyDAO, creatorNFT, positionManager, uniswapFactory, weth, poolFee, positionLocker);
         creatorNFT.setIsMinter(address(launch), true);
     }
 
@@ -65,21 +53,23 @@ contract PartyTokenLauncherForkTest is Test {
             numTokensForDistribution: 300_000_000e18,
             numTokensForRecipient: 200_000_000e18,
             targetContribution: 10 ether,
-            // TODO: Test with merkle root
             merkleRoot: bytes32(0),
-            recipient: recipient
+            recipient: recipient,
+            finalizationFeeBps: 100, // 1%
+            partyDAOPoolFeeBps: 50, // 0.5%
+            withdrawalFeeBps: 100 // 1% (same as before)
         });
 
         vm.prank(creator);
         uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
 
-        (IERC20 token,, uint96 totalContributions,,,,,) = launch.launches(launchId);
+        (PartyERC20 token,, uint96 totalContributions,,,,,,,,) = launch.launches(launchId);
+
         uint96 expectedTotalContributions;
-        uint96 expectedPartyDAOBalance = contributionFee;
+        uint96 expectedPartyDAOBalance;
         {
-            uint96 expectedTokensReceived =
-                launch.convertETHContributedToTokensReceived(launchId, 1 ether - contributionFee);
-            expectedTotalContributions = 1 ether - contributionFee;
+            uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 1 ether);
+            expectedTotalContributions += 1 ether;
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
             assertEq(token.totalSupply(), erc20Args.totalSupply);
@@ -92,28 +82,26 @@ contract PartyTokenLauncherForkTest is Test {
         vm.prank(contributor1);
         launch.contribute{ value: 5 ether }(launchId, "Contribution", new bytes32[](0));
 
-        expectedTotalContributions += 5 ether - contributionFee;
-        expectedPartyDAOBalance += contributionFee;
+        expectedTotalContributions += 5 ether;
         {
-            uint96 expectedTokensReceived =
-                launch.convertETHContributedToTokensReceived(launchId, 5 ether - contributionFee);
-            (,, totalContributions,,,,,) = launch.launches(launchId);
+            uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 5 ether);
+            (,, totalContributions,,,,,,,,) = launch.launches(launchId);
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor1), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
         }
 
-        // Step 3: Ragequit from the launch
+        // Step 3: Withdraw from the launch
         {
             uint96 tokenBalance = uint96(token.balanceOf(contributor1));
             vm.startPrank(contributor1);
             token.approve(address(launch), tokenBalance);
-            launch.ragequit(launchId);
+            launch.withdraw(launchId);
             vm.stopPrank();
 
             uint96 expectedETHReceived = launch.convertTokensReceivedToETHContributed(launchId, tokenBalance);
             expectedTotalContributions -= expectedETHReceived;
-            uint96 withdrawalFee = expectedETHReceived * withdrawalFeeBps / 1e4;
+            uint96 withdrawalFee = expectedETHReceived * launchArgs.withdrawalFeeBps / 1e4;
             expectedPartyDAOBalance += withdrawalFee;
             assertEq(token.balanceOf(contributor1), 0);
             assertEq(contributor1.balance, expectedETHReceived - withdrawalFee);
@@ -122,28 +110,27 @@ contract PartyTokenLauncherForkTest is Test {
 
         // Step 4: Finalize the launch
         uint96 remainingContribution = launchArgs.targetContribution - expectedTotalContributions;
-        vm.deal(contributor2, remainingContribution + contributionFee);
+        vm.deal(contributor2, remainingContribution);
         vm.prank(contributor2);
-        launch.contribute{ value: launchArgs.targetContribution - expectedTotalContributions + contributionFee }(
-            launchId, "Final Contribution", new bytes32[](0)
-        );
+        launch.contribute{ value: remainingContribution }(launchId, "Final Contribution", new bytes32[](0));
 
         expectedTotalContributions += remainingContribution;
-        expectedPartyDAOBalance += contributionFee;
         {
             PartyTokenLauncher.LaunchLifecycle lifecycle = launch.getLaunchLifecycle(launchId);
             assertTrue(lifecycle == PartyTokenLauncher.LaunchLifecycle.Finalized);
         }
         {
+            uint96 finalizationFee = launchArgs.finalizationFeeBps * launchArgs.targetContribution / 1e4;
+            expectedPartyDAOBalance += finalizationFee;
             address pool = uniswapFactory.getPool(address(token), weth, poolFee);
             assertApproxEqRel(token.balanceOf(pool), launchArgs.numTokensForLP, 0.001e18); // 0.01% tolerance
-            assertApproxEqRel(IERC20(weth).balanceOf(pool), launchArgs.targetContribution, 0.001e18); // 0.01%
+            assertApproxEqRel(IERC20(weth).balanceOf(pool), launchArgs.targetContribution - finalizationFee, 0.001e18); // 0.01%
                 // tolerance
         }
         {
             uint96 expectedTokensReceived =
                 launch.convertETHContributedToTokensReceived(launchId, remainingContribution);
-            (,, totalContributions,,,,,) = launch.launches(launchId);
+            (,, totalContributions,,,,,,,,) = launch.launches(launchId);
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor2), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);

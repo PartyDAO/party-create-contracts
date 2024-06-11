@@ -9,7 +9,7 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
     PartyTokenAdminERC721 adminNft;
 
     function setUp() public {
-        adminNft = new PartyTokenAdminERC721("PartySwapCreatorERC721", "PSC721", address(this));
+        adminNft = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PTA721", address(this));
         adminNft.setIsMinter(address(this), true);
     }
 
@@ -54,7 +54,7 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
         adminNft.setLaunchSucceeded(tokenId);
     }
 
-    function test_VERSION() external {
+    function test_VERSION() external view {
         assertEq(adminNft.VERSION(), "0.3.0");
     }
 }
