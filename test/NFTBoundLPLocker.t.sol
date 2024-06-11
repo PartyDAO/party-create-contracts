@@ -100,6 +100,7 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
         vm.assume(additionalFeeRecipient != address(0));
         vm.assume(adminNftHolder != address(this));
         vm.assume(adminNftHolder != address(0));
+        vm.assume(adminNftHolder != additionalFeeRecipient);
 
         uint256 adminTokenId = adminToken.mint("Party Token", "image", adminNftHolder);
 
