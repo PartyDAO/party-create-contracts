@@ -55,6 +55,15 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
             INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).mint{ value: 0.1 ether }(mintParams);
     }
 
+    function test_constructor() external {
+        locker =
+            new NFTBoundLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
+
+        assertEq(address(locker.POSITION_MANAGER()), uniswapV3Deployment.POSITION_MANAGER);
+        assertEq(address(locker.PARTY_TOKEN_ADMIN()), address(adminToken));
+        assertEq(address(locker.UNCX()), address(uncx));
+    }
+
     function test_onERC721Received_lockLp(address additionalFeeRecipient) external {
         vm.assume(additionalFeeRecipient != address(this));
 
@@ -81,6 +90,11 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
         vm.assume(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).ownerOf(lpTokenId) == address(uncx));
     }
 
+    function test_onERC721Received_notPositionManager() external {
+        vm.expectRevert(NFTBoundLPLocker.OnlyPositionManager.selector);
+        locker.onERC721Received(address(0), address(0), 0, "");
+    }
+
     function test_collect_feeDistributed(address additionalFeeRecipient, address adminNftHolder) external {
         vm.assume(additionalFeeRecipient != address(this));
         vm.assume(additionalFeeRecipient != address(0));
@@ -94,7 +108,7 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
         additionalFeeRecipients[0] = NFTBoundLPLocker.AdditionalFeeRecipient({
             recipient: additionalFeeRecipient,
             percentageBps: 1000,
-            feeType: NFTBoundLPLocker.FeeType.Token0
+            feeType: NFTBoundLPLocker.FeeType.Both
         });
         NFTBoundLPLocker.LPInfo memory lpInfo = NFTBoundLPLocker.LPInfo({
             token0: uniswapV3Deployment.WETH,
@@ -115,6 +129,10 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
             token0.balanceOf(adminToken.ownerOf(adminTokenId)),
             amount0 - 1000 * amount0 / 10_000 /* subtract additional fee */
         );
-        assertEq(token1.balanceOf(adminToken.ownerOf(adminTokenId)), amount1);
+        assertEq(token1.balanceOf(adminToken.ownerOf(adminTokenId)), amount1 - 1000 * amount1 / 10_000);
+    }
+
+    function test_VERSION() external {
+        assertEq(locker.VERSION(), "0.1.0");
     }
 }
