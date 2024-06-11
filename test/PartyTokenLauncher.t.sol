@@ -2,6 +2,9 @@
 pragma solidity ^0.8.25;
 
 import "forge-std/src/Test.sol";
+import { WETH9 } from "./mock/WETH.t.sol";
+import { MockUniswapV3Factory } from "./mock/MockUniswapV3Factory.t.sol";
+import { MockUniswapNonfungiblePositionManager } from "./mock/MockUniswapNonfungiblePositionManager.t.sol";
 
 import "../src/PartyTokenLauncher.sol";
 
@@ -9,119 +12,153 @@ contract PartyTokenLauncherTest is Test {
     PartyTokenLauncher launch;
     PartyTokenAdminERC721 creatorNFT;
     address payable partyDAO;
+    address positionLocker;
+    INonfungiblePositionManager public positionManager;
+    IUniswapV3Factory public uniswapFactory;
+    address payable public weth;
+    uint24 public poolFee;
 
     uint96 contributionFee = 0.00055 ether;
     uint16 withdrawalFeeBps = 100; // 1%
 
     function setUp() public {
+        weth = payable(address(new WETH9()));
+        uniswapFactory = IUniswapV3Factory(address(new MockUniswapV3Factory()));
+        positionManager = INonfungiblePositionManager(
+            address(new MockUniswapNonfungiblePositionManager(address(weth), address(uniswapFactory)))
+        );
+        poolFee = 3000;
+
         partyDAO = payable(vm.createWallet("Party DAO").addr);
-        creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
-        launch = new PartyTokenLauncher(partyDAO, creatorNFT, contributionFee, withdrawalFeeBps);
+        positionLocker = vm.createWallet("Position Locker").addr;
+        creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PTA721", address(this));
+        launch = new PartyTokenLauncher(
+            partyDAO,
+            creatorNFT,
+            positionManager,
+            uniswapFactory,
+            weth,
+            poolFee,
+            positionLocker,
+            contributionFee,
+            withdrawalFeeBps
+        );
         creatorNFT.setIsMinter(address(launch), true);
     }
 
-    function testIntegration_launchLifecycle() public {
+    function test_constructor_works() public view {
+        assertEq(address(launch.owner()), partyDAO);
+        assertEq(address(launch.TOKEN_ADMIN_ERC721()), address(creatorNFT));
+        assertEq(address(launch.POSTION_MANAGER()), address(positionManager));
+        assertEq(address(launch.UNISWAP_FACTORY()), address(uniswapFactory));
+        assertEq(address(launch.WETH()), weth);
+        assertEq(launch.POOL_FEE(), poolFee);
+        assertEq(address(launch.positionLocker()), positionLocker);
+        assertEq(launch.contributionFee(), contributionFee);
+        assertEq(launch.withdrawalFeeBps(), withdrawalFeeBps);
+    }
+
+    function test_createLaunch_works() public returns (uint32 launchId) {
         address creator = vm.createWallet("Creator").addr;
-        address recipient = vm.createWallet("Recipient").addr;
-        address contributor1 = vm.createWallet("Contributor1").addr;
-        address contributor2 = vm.createWallet("Contributor2").addr;
-
         vm.deal(creator, 1 ether);
-        vm.deal(contributor1, 1 ether);
-        vm.deal(contributor2, 1 ether);
 
-        // Step 1: Create a new launch
         PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
-            name: "TestToken",
-            symbol: "TT",
-            image: "test_image_url",
-            description: "Test Description",
-            totalSupply: 1_000_000_000e18
+            name: "NewToken",
+            symbol: "NT",
+            image: "image_url",
+            description: "New Token Description",
+            totalSupply: 1_000_000 ether
         });
 
         PartyTokenLauncher.LaunchArgs memory launchArgs = PartyTokenLauncher.LaunchArgs({
-            numTokensForLP: 500_000_000e18,
-            numTokensForDistribution: 300_000_000e18,
-            numTokensForRecipient: 200_000_000e18,
+            numTokensForLP: 500_000 ether,
+            numTokensForDistribution: 300_000 ether,
+            numTokensForRecipient: 200_000 ether,
             targetContribution: 10 ether,
-            // TODO: Test with merkle root
             merkleRoot: bytes32(0),
-            recipient: recipient
+            recipient: address(0x123)
         });
 
         vm.prank(creator);
-        uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
 
+        assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Active);
         (IERC20 token,, uint96 totalContributions,,,,,) = launch.launches(launchId);
-        uint96 expectedTotalContributions;
-        uint96 expectedPartyDAOBalance = contributionFee;
-        {
-            uint96 expectedTokensReceived =
-                launch.convertETHContributedToTokensReceived(launchId, 1 ether - contributionFee);
-            expectedTotalContributions = 1 ether - contributionFee;
-            assertEq(totalContributions, expectedTotalContributions);
-            assertEq(partyDAO.balance, expectedPartyDAOBalance);
-            assertEq(token.totalSupply(), erc20Args.totalSupply);
-            assertEq(token.balanceOf(creator), expectedTokensReceived);
-            assertEq(token.balanceOf(address(launch)), erc20Args.totalSupply - expectedTokensReceived);
-        }
-
-        // Step 2: Contribute to the launch
-        vm.deal(contributor1, 5 ether);
-        vm.prank(contributor1);
-        launch.contribute{ value: 5 ether }(launchId, "Contribution", new bytes32[](0));
-
-        expectedTotalContributions += 5 ether - contributionFee;
-        expectedPartyDAOBalance += contributionFee;
-        {
-            uint96 expectedTokensReceived =
-                launch.convertETHContributedToTokensReceived(launchId, 5 ether - contributionFee);
-            (,, totalContributions,,,,,) = launch.launches(launchId);
-            assertEq(totalContributions, expectedTotalContributions);
-            assertEq(token.balanceOf(contributor1), expectedTokensReceived);
-            assertEq(partyDAO.balance, expectedPartyDAOBalance);
-        }
-
-        // Step 3: Ragequit from the launch
-        vm.startPrank(contributor1);
-        token.approve(address(launch), token.balanceOf(contributor1));
-        launch.ragequit(launchId);
-        vm.stopPrank();
-
-        expectedTotalContributions -= 5 ether - contributionFee;
-        {
-            uint96 withdrawalFee = (5 ether - contributionFee) * withdrawalFeeBps / 1e4;
-            expectedPartyDAOBalance += withdrawalFee;
-            assertEq(token.balanceOf(contributor1), 0);
-            assertEq(contributor1.balance, 5 ether - contributionFee - withdrawalFee);
-            assertEq(partyDAO.balance, expectedPartyDAOBalance);
-        }
-
-        // Step 4: Finalize the launch
-        uint96 remainingContribution = launchArgs.targetContribution - expectedTotalContributions;
-        vm.deal(contributor2, remainingContribution + contributionFee);
-        vm.prank(contributor2);
-        launch.contribute{ value: launchArgs.targetContribution - expectedTotalContributions + contributionFee }(
-            launchId, "Final Contribution", new bytes32[](0)
-        );
-
-        expectedTotalContributions += remainingContribution;
-        expectedPartyDAOBalance += contributionFee;
-        {
-            PartyTokenLauncher.LaunchLifecycle lifecycle = launch.getLaunchLifecycle(launchId);
-            assertTrue(lifecycle == PartyTokenLauncher.LaunchLifecycle.Finalized);
-
-            uint96 expectedTokensReceived =
-                launch.convertETHContributedToTokensReceived(launchId, remainingContribution);
-            (,, totalContributions,,,,,) = launch.launches(launchId);
-            assertEq(totalContributions, expectedTotalContributions);
-            assertEq(token.balanceOf(contributor2), expectedTokensReceived);
-            assertEq(partyDAO.balance, expectedPartyDAOBalance);
-            assertEq(token.balanceOf(recipient), launchArgs.numTokensForRecipient);
-        }
+        uint96 expectedTokensReceived =
+            launch.convertETHContributedToTokensReceived(launchId, 1 ether - contributionFee);
+        assertEq(token.balanceOf(creator), expectedTokensReceived);
+        assertEq(token.totalSupply(), erc20Args.totalSupply);
+        assertEq(totalContributions, 1 ether - contributionFee);
+        assertEq(creator.balance, 0);
+        assertEq(address(launch).balance, 1 ether - contributionFee);
     }
 
-    function test_setContributionFee() public {
+    function test_contribute_works() public {
+        uint32 launchId = test_createLaunch_works();
+        address contributor = vm.createWallet("Contributor").addr;
+        vm.deal(contributor, 5 ether);
+
+        vm.prank(contributor);
+        launch.contribute{ value: 5 ether }(launchId, "Adding funds", new bytes32[](0));
+
+        (IERC20 token,, uint96 totalContributions,,,,,) = launch.launches(launchId);
+        uint96 expectedTokensReceived =
+            launch.convertETHContributedToTokensReceived(launchId, 5 ether - contributionFee);
+        assertEq(token.balanceOf(contributor), expectedTokensReceived);
+        assertEq(totalContributions, 6 ether - (contributionFee * 2));
+        assertEq(contributor.balance, 0);
+        assertEq(address(launch).balance, 6 ether - (contributionFee * 2));
+    }
+
+    function test_ragequit_works() public {
+        uint32 launchId = test_createLaunch_works();
+        address creator = vm.createWallet("Creator").addr;
+
+        (IERC20 token,,,,,,,) = launch.launches(launchId);
+        uint96 tokenBalance = uint96(token.balanceOf(creator));
+
+        vm.prank(creator);
+        launch.ragequit(launchId);
+
+        uint96 expectedETHReturned = launch.convertTokensReceivedToETHContributed(launchId, tokenBalance);
+        uint96 withdrawalFee = (expectedETHReturned * withdrawalFeeBps) / 10_000;
+        assertEq(creator.balance, expectedETHReturned - withdrawalFee);
+        assertEq(token.balanceOf(creator), 0);
+        assertEq(partyDAO.balance, contributionFee + withdrawalFee);
+        (,, uint96 totalContributions,,,,,) = launch.launches(launchId);
+        assertEq(totalContributions, 0);
+    }
+
+    function test_finalize_works() public {
+        uint32 launchId = test_createLaunch_works();
+        address contributor = vm.createWallet("Final Contributor").addr;
+        (IERC20 token, uint96 targetContribution, uint96 totalContributions,,,,,) = launch.launches(launchId);
+        uint96 remainingContribution = targetContribution - totalContributions + contributionFee;
+        vm.deal(contributor, remainingContribution);
+
+        vm.prank(contributor);
+        launch.contribute{ value: remainingContribution }(launchId, "Finalize", new bytes32[](0));
+
+        assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
+        (,, totalContributions,,,,,) = launch.launches(launchId);
+        uint96 expectedTokensReceived =
+            launch.convertETHContributedToTokensReceived(launchId, remainingContribution - contributionFee);
+        assertEq(token.balanceOf(contributor), expectedTokensReceived);
+        assertEq(totalContributions, targetContribution);
+        assertEq(contributor.balance, 0);
+        assertEq(token.balanceOf(address(launch)), 0);
+        assertEq(address(launch).balance, 0);
+    }
+
+    function test_setPositionLocker_works() public {
+        address newPositionLocker = vm.createWallet("New Position Locker").addr;
+        vm.prank(partyDAO);
+        launch.setPositionLocker(newPositionLocker);
+
+        assertEq(launch.positionLocker(), newPositionLocker);
+    }
+
+    function test_setContributionFee_works() public {
         assertEq(launch.contributionFee(), 0.00055 ether);
 
         uint96 newContributionFee = 0.001 ether;
@@ -132,7 +169,7 @@ contract PartyTokenLauncherTest is Test {
         assertEq(launch.contributionFee(), newContributionFee);
     }
 
-    function test_setWithdrawalFeeBps() public {
+    function test_setWithdrawalFeeBps_works() public {
         assertEq(launch.withdrawalFeeBps(), 100);
 
         uint16 newWithdrawalFeeBps = 50; // 0.5%
@@ -140,5 +177,9 @@ contract PartyTokenLauncherTest is Test {
         launch.setWithdrawalFeeBps(newWithdrawalFeeBps);
 
         assertEq(launch.withdrawalFeeBps(), newWithdrawalFeeBps);
+    }
+
+    function test_VERSION_works() public view {
+        assertEq(launch.VERSION(), "0.3.0");
     }
 }

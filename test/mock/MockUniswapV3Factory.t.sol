@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8;
+pragma solidity ^0.8.25;
 
 import { IUniswapV3Factory } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import { MockPool } from "./MockPool.t.sol";
@@ -17,10 +17,10 @@ contract MockUniswapV3Factory is IUniswapV3Factory {
         return pools[tokenA][tokenB][fee];
     }
 
-    function setOwner(address _owner) external { }
-    function enableFeeAmount(uint24 fee, int24 tickSpacing) external { }
+    function setOwner(address) external { }
+    function enableFeeAmount(uint24, int24) external { }
 
-    function feeAmountTickSpacing(uint24 fee) external view returns (int24) {
+    function feeAmountTickSpacing(uint24) external pure returns (int24) {
         return 100;
     }
 

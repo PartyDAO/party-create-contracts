@@ -91,7 +91,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         token.setMetadata("NewImage", "NewDescription");
     }
 
-    function test_VERSION() external {
+    function test_VERSION() external view {
         assertEq(token.VERSION(), "0.1.0");
     }
 }

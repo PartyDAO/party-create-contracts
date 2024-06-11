@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8;
+pragma solidity ^0.8.25;
 
 import { WETH9 } from "./WETH.t.sol";
 import { MockUniswapV3Factory } from "./MockUniswapV3Factory.t.sol";

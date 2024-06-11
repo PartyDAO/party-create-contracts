@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
+    "@uniswap/v3-core": "Uniswap/v3-core",
+    "@uniswap/v3-periphery": "Uniswap/v3-periphery#0.8",
     "ethers": "^6.12.1",
     "openzeppelin-solidity": "OpenZeppelin/openzeppelin-contracts",
     "@uniswap/v3-core": "Uniswap/v3-core",
@@ -41,7 +43,7 @@
     "prettier:check": "prettier --check \"**/*.{json,md,yml}\" --ignore-path \".prettierignore\"",
     "prettier:write": "prettier --write \"**/*.{json,md,yml}\" --ignore-path \".prettierignore\"",
     "test": "forge test",
-    "test:coverage": "COVERAGE=true forge coverage",
-    "test:coverage:report": "COVERAGE=true forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
+    "test:coverage": "COVERAGE=true forge coverage -f $SEPOLIA_RPC_URL",
+    "test:coverage:report": "COVERAGE=true forge coverage -f $SEPOLIA_RPC_URL --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
   }
 }
