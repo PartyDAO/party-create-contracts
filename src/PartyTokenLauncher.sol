@@ -21,7 +21,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
 
-    event LaunchCreated(uint32 indexed launchId, address indexed creator, IERC20 indexed token, address tokenLiquidityPool);
+    event LaunchCreated(
+        uint32 indexed launchId, address indexed creator, IERC20 indexed token, address tokenLiquidityPool
+    );
     event Contribute(
         uint32 indexed launchId,
         address indexed contributor,

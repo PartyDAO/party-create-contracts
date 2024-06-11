@@ -49,14 +49,8 @@ contract PartyTokenLauncherTest is Test {
     function test_constructor_works() public view {
         assertEq(address(launch.owner()), partyDAO);
         assertEq(address(launch.TOKEN_ADMIN_ERC721()), address(creatorNFT));
-        assertEq(
-            address(launch.POSTION_MANAGER()),
-            address(positionManager)
-        );
-        assertEq(
-            address(launch.UNISWAP_FACTORY()),
-            address(uniswapFactory)
-        );
+        assertEq(address(launch.POSTION_MANAGER()), address(positionManager));
+        assertEq(address(launch.UNISWAP_FACTORY()), address(uniswapFactory));
         assertEq(address(launch.WETH()), weth);
         assertEq(launch.POOL_FEE(), poolFee);
         assertEq(address(launch.positionLocker()), positionLocker);
