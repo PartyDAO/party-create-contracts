@@ -8,6 +8,7 @@ contract MockUniswapV3Factory is IUniswapV3Factory {
     mapping(address => mapping(address => mapping(uint24 => address))) internal pools;
 
     function createPool(address tokenA, address tokenB, uint24 fee) external override returns (address pool) {
+        require(tokenA < tokenB, "UniswapV3Factory::createPool: tokenA must be less than tokenB");
         pool = address(new MockPool{ salt: keccak256(abi.encodePacked(tokenA, tokenB, fee)) }());
         pools[tokenA][tokenB][fee] = pool;
         pools[tokenB][tokenA][fee] = pool;

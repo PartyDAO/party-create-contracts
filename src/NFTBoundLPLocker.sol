@@ -90,10 +90,10 @@ contract NFTBoundLPLocker is IERC721Receiver {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    function collect(uint256 lockId) external {
+    function collect(uint256 lockId) external returns (uint256 amount0, uint256 amount1) {
         LPInfo memory lpInfo = lpInfos[lockId];
 
-        (uint256 amount0, uint256 amount1,,) = UNCX.collect(lockId, address(this), type(uint128).max, type(uint128).max);
+        (amount0, amount1,,) = UNCX.collect(lockId, address(this), type(uint128).max, type(uint128).max);
 
         for (uint256 i = 0; i < lpInfo.additionalFeeRecipients.length; i++) {
             AdditionalFeeRecipient memory recipient = lpInfo.additionalFeeRecipients[i];
