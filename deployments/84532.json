@@ -1,6 +1,6 @@
 {
   "contracts": {
-    "PartySwapCreatorERC721": {
+    "PartyTokenAdminERC721": {
       "deploys": [
         {
           "deployedArgs": "0x00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000001650617274795377617043726561746f724552433732310000000000000000000000000000000000000000000000000000000000000000000000000000000000065053433732310000000000000000000000000000000000000000000000000000",
@@ -15,7 +15,7 @@
       ],
       "constructorArgs": ["nft_name", "nft_symbol", "partyDao"]
     },
-    "PartySwapCrowdfund": {
+    "PartyTokenLauncher": {
       "deploys": [
         {
           "deployedArgs": "0x0000000000000000000000000e63d6f414b40bafca676810ef1abf05ecc8e459000000000000000000000000ead87c4eaf570a51affa6180695ee23a5d935ad10000000000000000000000000000000000000000000000000001f438daa060000000000000000000000000000000000000000000000000000000000000000064",
@@ -33,7 +33,15 @@
           "address": "0xe8d0b7c97E3da71a0295cb83ED64E877DD01Ecd7"
         }
       ],
-      "constructorArgs": ["partyDao", "PartySwapCreatorERC721", "contributionFee", "withdrawalFeeBips"]
+      "constructorArgs": [
+        "partyDao",
+        "PartyTokenAdminERC721",
+        "positionManager",
+        "uniswapFactory",
+        "weth",
+        "poolFee",
+        "positionLocker"
+      ]
     }
   },
   "constants": {
@@ -41,7 +49,7 @@
     "airdropper": "0x0000000000000000000000000000000000000000",
     "contributionFee": 550000000000000,
     "withdrawalFeeBips": 100,
-    "nft_name": "PartySwapCreatorERC721",
+    "nft_name": "PartyTokenAdminERC721",
     "nft_symbol": "PSC721"
   }
 }
