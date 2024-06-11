@@ -7,7 +7,7 @@ import { MockUniswapV3Factory } from "./MockUniswapV3Factory.t.sol";
 import { IMulticall } from "@uniswap/v3-periphery/contracts/interfaces/IMulticall.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { WETH9 } from "./WETH.t.sol";
-import "forge-std/src/Test.sol";
+import { Test } from "forge-std/src/Test.sol";
 
 contract MockUniswapNonfungiblePositionManager is ERC721, IMulticall, Test {
     WETH9 public immutable WETH;

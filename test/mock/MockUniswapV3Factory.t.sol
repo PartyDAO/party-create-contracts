@@ -17,8 +17,8 @@ contract MockUniswapV3Factory is IUniswapV3Factory {
         return pools[tokenA][tokenB][fee];
     }
 
-    function setOwner(address _owner) external { }
-    function enableFeeAmount(uint24 fee, int24 tickSpacing) external { }
+    function setOwner(address) external { }
+    function enableFeeAmount(uint24, int24) external { }
 
     function feeAmountTickSpacing(uint24) external pure returns (int24) {
         return 100;

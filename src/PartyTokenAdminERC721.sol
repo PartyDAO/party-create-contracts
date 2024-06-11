@@ -5,7 +5,7 @@ import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC4906 } from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 
-contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
+contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     error OnlyMinter();
 
     modifier onlyMinter() {
@@ -16,7 +16,7 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
     struct TokenMetadata {
         string name;
         string image;
-        bool crowdfundSuccessful;
+        bool launchSuccessful;
     }
 
     /**
@@ -69,11 +69,11 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
     }
 
     /**
-     * @notice Set the metadata of a token indicating the crowdfund succeeded
-     * @param tokenId The token ID for which the crowdfund succeeded
+     * @notice Set the metadata of a token indicating the launch succeeded
+     * @param tokenId The token ID for which the launch succeeded
      */
-    function setCrowdfundSucceeded(uint256 tokenId) external onlyMinter {
-        tokenMetadatas[tokenId].crowdfundSuccessful = true;
+    function setLaunchSucceeded(uint256 tokenId) external onlyMinter {
+        tokenMetadatas[tokenId].launchSuccessful = true;
         emit MetadataUpdate(tokenId);
     }
 
@@ -90,8 +90,8 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
             tokenMetadata.name,
             "\",\"image\":\"",
             tokenMetadata.image,
-            "\",\"attributes\":[{\"crowdfund_succeeded\":",
-            tokenMetadata.crowdfundSuccessful ? "true" : "false",
+            "\",\"attributes\":[{\"launch_succeeded\":",
+            tokenMetadata.launchSuccessful ? "true" : "false",
             "}]}"
         );
     }
@@ -101,6 +101,6 @@ contract PartySwapCreatorERC721 is ERC721, Ownable, IERC4906 {
      * change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.2.0";
+        return "0.3.0";
     }
 }
