@@ -361,6 +361,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             emit RecipientTransfer(launchId, launch.token, launch.recipient, launch.numTokensForRecipient);
         }
 
+        // Indicate launch succeeded
+        TOKEN_ADMIN_ERC721.setLaunchSucceeded(tokenId);
+
         // Unpause token
         launch.token.setPaused(false);
 
