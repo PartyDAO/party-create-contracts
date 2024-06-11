@@ -14,7 +14,7 @@ import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 
 // TODO: Add functions to move ETH from one token to another with one fn call?
-// e.g. withdrawAndContribute(address tokenAddressToRageQuit, address tokenAddressToContributeTo)
+// e.g. withdrawAndContribute(address tokenAddressToWithdraw, address tokenAddressToContributeTo)
 
 // TODO: Rename contract?
 contract PartyTokenLauncher is Ownable, IERC721Receiver {

@@ -35,6 +35,15 @@ contract PartyTokenLauncherTest is Test {
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PTA721", address(this));
         launch =
             new PartyTokenLauncher(partyDAO, creatorNFT, positionManager, uniswapFactory, weth, poolFee, positionLocker);
+        abi.encode(
+            0x0e63D6f414b40BaFCa676810ef1aBf05ECc8E459,
+            0xA8b00B4A02a320D86f11e32374C7469fD67b46c7,
+            0x27F971cb582BF9E50F397e4d29a5C7A34f11faA2,
+            0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24,
+            0x4200000000000000000000000000000000000006,
+            100,
+            0x0e63D6f414b40BaFCa676810ef1aBf05ECc8E459
+        );
         creatorNFT.setIsMinter(address(launch), true);
     }
 

@@ -58,7 +58,7 @@ contract PartyTokenLauncherForkTest is Test {
             finalizationFeeBps: 100, // 1%
             partyDAOPoolFeeBps: 50, // 0.5%
             withdrawalFeeBps: 100 // 1% (same as before)
-         });
+        });
 
         vm.prank(creator);
         uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
