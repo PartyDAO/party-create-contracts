@@ -80,7 +80,7 @@ async function runDeploy(
 
   const encodedConstructorArgs = encodeConstructorArgs(contract, constructorArgs);
   let newDeploy: Deploy = { deployedArgs: encodedConstructorArgs } as Deploy;
-  newDeploy.version = await getUndeployedContractVersion(contract, constructorArgs);
+  newDeploy.version = await getUndeployedContractVersion(contract, constructorArgs, rpcUrl);
 
   validateDeploy(contract, newDeploy, chainId);
 
@@ -200,10 +200,11 @@ function writeDeploy(contract: string, deploy: Deploy, chainId: string) {
 
 /**
  * Launches a local anvil instance using the `mnemonic-seed` 123
+ * @param rpcUrl RPC to use as a fork for the local anvil instance
  * @returns Returns the child process. Must be killed.
  */
-async function launchAnvil(): Promise<ChildProcessWithoutNullStreams> {
-  var anvil = spawn("anvil", ["--mnemonic-seed-unsafe", "123"]);
+async function launchAnvil(rpcUrl: string): Promise<ChildProcessWithoutNullStreams> {
+  var anvil = spawn("anvil", ["--mnemonic-seed-unsafe", "123", "--fork-url", rpcUrl]);
   return new Promise((resolve) => {
     anvil.stdout.on("data", function (data) {
       if (data.includes("Listening")) {
@@ -219,10 +220,15 @@ async function launchAnvil(): Promise<ChildProcessWithoutNullStreams> {
 /**
  * Gets the version of an undeployed contract via deploying to a local network.
  * @param contractName Name of the contract in the repo
+ * @param rpcUrl The RPC url to fork the local node off of
  * @returns
  */
-async function getUndeployedContractVersion(contractName: string, constructorArgs: any): Promise<string> {
-  const anvil = await launchAnvil();
+async function getUndeployedContractVersion(
+  contractName: string,
+  constructorArgs: any,
+  rpcUrl: string,
+): Promise<string> {
+  const anvil = await launchAnvil(rpcUrl);
 
   // Private key generated from mnemonic 123
   const createCommand = `forge create ${contractName} --private-key 0x78427d179c2c0f8467881bc37f9453a99854977507ca53ff65e1c875208a4a03 --rpc-url "127.0.0.1:8545" ${
