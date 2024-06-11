@@ -16,13 +16,17 @@ import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/int
 // TODO: Add functions to move ETH from one token to another with one fn call?
 // e.g. withdrawAndContribute(address tokenAddressToWithdraw, address tokenAddressToContributeTo)
 
-// TODO: Rename contract?
 contract PartyTokenLauncher is Ownable, IERC721Receiver {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
 
     event LaunchCreated(
-        uint32 indexed launchId, address indexed creator, IERC20 indexed token, address tokenLiquidityPool
+        uint32 indexed launchId,
+        address indexed creator,
+        IERC20 indexed token,
+        address tokenLiquidityPool,
+        ERC20Args erc20Args,
+        LaunchArgs launchArgs
     );
     event Contribute(
         uint32 indexed launchId,
@@ -38,10 +42,11 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint96 ethContributed,
         uint96 withdrawalFee
     );
-    event Finalized(uint32 indexed launchId, uint256 liquidityPoolTokenId);
+    event Finalized(
+        uint32 indexed launchId, IERC20 indexed token, uint256 liquidityPoolTokenId, uint96 ethAmountForPool
+    );
     event PositionLockerSet(address oldPositionLocker, address newPositionLocker);
-    event ContributionFeeSet(uint96 oldContributionFee, uint96 newContributionFee);
-    event WithdrawalFeeBpsSet(uint16 oldWithdrawalFeeBps, uint16 newWithdrawalFeeBps);
+    event RecipientTransfer(uint32 indexed launchId, IERC20 indexed token, address indexed recipient, uint96 numTokens);
 
     error LaunchInvalid();
 
@@ -178,16 +183,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         }
 
         // Initialize empty Uniswap pool. Will be liquid after launch is successful and finalized.
-        uint96 finalizationFee = launchArgs.finalizationFeeBps * launchArgs.targetContribution / 1e4;
-        uint96 amountForPool = launchArgs.targetContribution - finalizationFee;
-        (uint256 amount0, uint256 amount1) = WETH < address(token)
-            ? (amountForPool, launchArgs.numTokensForLP)
-            : (launchArgs.numTokensForLP, amountForPool);
+        address pool = _initializeUniswapPool(launch);
 
-        address pool = UNISWAP_FACTORY.createPool(address(token), WETH, POOL_FEE);
-        IUniswapV3Pool(pool).initialize(_calculateSqrtPriceX96(amount0, amount1));
-
-        emit LaunchCreated(id, msg.sender, token, pool);
+        emit LaunchCreated(id, msg.sender, token, pool, erc20Args, launchArgs);
     }
 
     function getLaunchLifecycle(uint32 launchId) public view returns (LaunchLifecycle) {
@@ -359,6 +357,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         // Transfer tokens to recipient
         if (launch.numTokensForRecipient > 0) {
             launch.token.transfer(launch.recipient, launch.numTokensForRecipient);
+
+            emit RecipientTransfer(launchId, launch.token, launch.recipient, launch.numTokensForRecipient);
         }
 
         // Unpause token
@@ -367,7 +367,18 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         // Renounce ownership
         launch.token.renounceOwnership();
 
-        emit Finalized(launchId, tokenId);
+        emit Finalized(launchId, launch.token, tokenId, amountForPool);
+    }
+
+    function _initializeUniswapPool(Launch memory launch) private returns (address pool) {
+        uint96 finalizationFee = launch.finalizationFeeBps * launch.targetContribution / 1e4;
+        uint96 amountForPool = launch.targetContribution - finalizationFee;
+        (uint256 amount0, uint256 amount1) = WETH < address(launch.token)
+            ? (amountForPool, launch.numTokensForLP)
+            : (launch.numTokensForLP, amountForPool);
+
+        pool = UNISWAP_FACTORY.createPool(address(launch.token), WETH, POOL_FEE);
+        IUniswapV3Pool(pool).initialize(_calculateSqrtPriceX96(amount0, amount1));
     }
 
     function _calculateSqrtPriceX96(uint256 amount0, uint256 amount1) private pure returns (uint160) {
