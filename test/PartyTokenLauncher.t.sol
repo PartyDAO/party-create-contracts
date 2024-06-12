@@ -150,6 +150,6 @@ contract PartyTokenLauncherTest is Test {
     }
 
     function test_VERSION_works() public view {
-        assertEq(launch.VERSION(), "0.4.0");
+        assertEq(launch.VERSION(), "0.5.0");
     }
 }
