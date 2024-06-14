@@ -53,7 +53,7 @@ jobs:
         run: "bun install"
 
       - name: "Build the contracts and print their size"
-        run: "forge build --sizes"
+        run: "forge build --optimize --optimizer-runs 0 --via-ir --sizes"
 
       - name: "Add build summary"
         run: |
