@@ -11,6 +11,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
 
     event ContractURIUpdated();
     event IsMinterSet(address indexed who, bool isMinter);
+    event TokenImageSet(uint256 indexed tokenId, string image);
 
     modifier onlyMinter() {
         if (!isMinter[msg.sender]) revert OnlyMinter();
@@ -114,6 +115,8 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     function setTokenImage(uint256 tokenId, string calldata image) external {
         if (msg.sender != ownerOf(tokenId)) revert Unauthorized();
         tokenMetadatas[tokenId].image = image;
+
+        emit TokenImageSet(tokenId, image);
     }
 
     /**

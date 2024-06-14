@@ -24,11 +24,15 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
         _lintJSON(adminNft.tokenURI(tokenId));
     }
 
+    event TokenImageSet(uint256 indexed tokenId, string image);
+
     function test_setTokenImage_storageReflected() external {
         uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
         (, string memory image,) = adminNft.tokenMetadatas(tokenId);
         assertEq(image, "test_image_url");
 
+        vm.expectEmit(true, true, true, true);
+        emit TokenImageSet(tokenId, "new image url");
         adminNft.setTokenImage(tokenId, "new image url");
         (, image,) = adminNft.tokenMetadatas(tokenId);
         assertEq(image, "new image url");
