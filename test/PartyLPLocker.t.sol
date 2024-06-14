@@ -77,10 +77,8 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             percentageBps: 1000,
             feeType: PartyLPLocker.FeeType.Token0
         });
-        PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
-            partyTokenAdminId: adminTokenId,
-            additionalFeeRecipients: additionalFeeRecipients
-        });
+        PartyLPLocker.LPInfo memory lpInfo =
+            PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
             address(this), address(locker), lpTokenId, abi.encode(lpInfo)
@@ -104,10 +102,8 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             percentageBps: 9001,
             feeType: PartyLPLocker.FeeType.Token0
         });
-        PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
-            partyTokenAdminId: adminTokenId,
-            additionalFeeRecipients: additionalFeeRecipients
-        });
+        PartyLPLocker.LPInfo memory lpInfo =
+            PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
         vm.expectRevert(PartyLPLocker.InvalidFeeBps.selector);
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
@@ -130,10 +126,8 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             percentageBps: 9001,
             feeType: PartyLPLocker.FeeType.Both
         });
-        PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
-            partyTokenAdminId: adminTokenId,
-            additionalFeeRecipients: additionalFeeRecipients
-        });
+        PartyLPLocker.LPInfo memory lpInfo =
+            PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
         vm.expectRevert(PartyLPLocker.InvalidFeeBps.selector);
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
@@ -168,10 +162,8 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             percentageBps: 1000,
             feeType: PartyLPLocker.FeeType.Both
         });
-        PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
-            partyTokenAdminId: adminTokenId,
-            additionalFeeRecipients: additionalFeeRecipients
-        });
+        PartyLPLocker.LPInfo memory lpInfo =
+            PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
             address(this), address(locker), lpTokenId, abi.encode(lpInfo)
