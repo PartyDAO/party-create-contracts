@@ -81,7 +81,9 @@ contract PartyTokenLauncherTest is Test {
         launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Active);
-        (PartyERC20 token,, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (PartyERC20 token,, uint96 totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
+
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 1 ether);
         assertEq(token.balanceOf(creator), expectedTokensReceived);
         assertEq(token.totalSupply(), erc20Args.totalSupply);
@@ -98,7 +100,8 @@ contract PartyTokenLauncherTest is Test {
         vm.prank(contributor);
         launch.contribute{ value: 5 ether }(launchId, "Adding funds", new bytes32[](0));
 
-        (PartyERC20 token,, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (PartyERC20 token,, uint96 totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 5 ether);
         assertEq(token.balanceOf(contributor), expectedTokensReceived);
         assertEq(totalContributions, 6 ether);
@@ -125,7 +128,8 @@ contract PartyTokenLauncherTest is Test {
         uint32 launchId = test_createLaunch_works();
         address creator = vm.createWallet("Creator").addr;
 
-        (PartyERC20 token,, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (PartyERC20 token,, uint96 totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
         uint96 tokenBalance = uint96(token.balanceOf(creator));
 
         vm.prank(creator);
@@ -137,7 +141,8 @@ contract PartyTokenLauncherTest is Test {
         assertEq(ethReceived, expectedETHReturned - withdrawalFee);
         assertEq(token.balanceOf(creator), 0);
         assertEq(partyDAO.balance, withdrawalFee);
-        (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
+        (, res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (token,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
         assertEq(totalContributions, 0);
     }
 
@@ -150,7 +155,9 @@ contract PartyTokenLauncherTest is Test {
         launch.contribute{ value: 2 ether }(launchId, "", new bytes32[](0));
 
         address contributor2 = vm.createWallet("Final Contributor").addr;
-        (PartyERC20 token, uint96 targetContribution, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (PartyERC20 token, uint96 targetContribution, uint96 totalContributions) =
+            abi.decode(res, (PartyERC20, uint96, uint96));
         uint96 remainingContribution = targetContribution - totalContributions;
         vm.deal(contributor2, remainingContribution);
 
@@ -158,7 +165,8 @@ contract PartyTokenLauncherTest is Test {
         launch.contribute{ value: remainingContribution }(launchId, "Finalize", new bytes32[](0));
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
-        (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
+        (, res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, remainingContribution);
         assertEq(token.balanceOf(contributor2), expectedTokensReceived);
         assertEq(totalContributions, targetContribution);
