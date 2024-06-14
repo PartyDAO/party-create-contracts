@@ -147,7 +147,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         PartyERC20 token = new PartyERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
             erc20Args.name,
             erc20Args.symbol,
-            erc20Args.image,
             erc20Args.description,
             erc20Args.totalSupply,
             address(this),

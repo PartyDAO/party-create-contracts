@@ -11,7 +11,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
     PartyERC20 public token;
     PartyTokenAdminERC721 public ownershipNft;
 
-    event MetadataSet(string image, string description);
+    event MetadataSet(string description);
 
     function setUp() public override {
         super.setUp();
@@ -22,15 +22,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
                 abi.encodePacked(
                     type(PartyERC20).creationCode,
                     abi.encode(
-                        "PartyERC20",
-                        "PARTY",
-                        "MyImage",
-                        "MyDescription",
-                        100_000,
-                        address(this),
-                        address(this),
-                        ownershipNft,
-                        1
+                        "PartyERC20", "PARTY", "MyDescription", 100_000, address(this), address(this), ownershipNft, 1
                     )
                 )
             )
@@ -66,6 +58,14 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         token.transferFrom(tokenHolder, address(this), 1000);
     }
 
+    function test_getTokenImage_fetchFromToken() external {
+        assertEq(token.getTokenImage(), "MyImage");
+
+        ownershipNft.setTokenImage(1, "NewImage");
+
+        assertEq(token.getTokenImage(), "NewImage");
+    }
+
     function test_transferFrom_needsApproval(address tokenHolder, address spender) external {
         vm.assume(tokenHolder != address(this) && spender != address(this));
         vm.assume(tokenHolder != address(0) && spender != address(0));
@@ -81,15 +81,15 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
 
     function test_setMetadata() external {
         vm.expectEmit(true, true, true, true);
-        emit MetadataSet("NewImage", "NewDescription");
-        token.setMetadata("NewImage", "NewDescription");
+        emit MetadataSet("NewDescription");
+        token.setMetadata("NewDescription");
     }
 
     function test_setMetadata_onlyNFTHolder() external {
         ownershipNft.transferFrom(address(this), address(2), 1);
 
         vm.expectRevert(PartyERC20.Unauthorized.selector);
-        token.setMetadata("NewImage", "NewDescription");
+        token.setMetadata("NewDescription");
     }
 
     function test_getVotes_verifyAutodelegation() external {

@@ -7,9 +7,11 @@ import { IERC4906 } from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 
 contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     error OnlyMinter();
+    error Unauthorized();
 
     event ContractURIUpdated();
     event IsMinterSet(address indexed who, bool isMinter);
+    event TokenImageSet(uint256 indexed tokenId, string image);
 
     modifier onlyMinter() {
         if (!isMinter[msg.sender]) revert OnlyMinter();
@@ -30,7 +32,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     /**
      * @notice Store the metadata for each token.
      */
-    mapping(uint256 => TokenMetadata) internal tokenMetadatas;
+    mapping(uint256 => TokenMetadata) public tokenMetadatas;
 
     /**
      * @notice The total supply of the token.
@@ -105,6 +107,22 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         );
     }
 
+    /**
+     * @notice Sets the image for an existing token. Also reflected on the paired ERC20.
+     * @param tokenId Token ID to set the image for
+     * @param image New image string
+     */
+    function setTokenImage(uint256 tokenId, string calldata image) external {
+        if (msg.sender != ownerOf(tokenId)) revert Unauthorized();
+        tokenMetadatas[tokenId].image = image;
+
+        emit TokenImageSet(tokenId, image);
+    }
+
+    /**
+     * @notice Owner function to set the contract URI.
+     * @param contractURI_ New contract URI string
+     */
     function setContractURI(string memory contractURI_) external onlyOwner {
         contractURI = contractURI_;
         emit ContractURIUpdated();
