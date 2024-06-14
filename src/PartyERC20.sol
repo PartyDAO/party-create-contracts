@@ -3,11 +3,11 @@ pragma solidity ^0.8.25;
 
 import { ERC20Permit, Nonces } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { ERC20Votes, ERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { PartyTokenAdminERC721 } from "./PartyTokenAdminERC721.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
-    event MetadataSet(string image, string description);
+    event MetadataSet(string description);
     event PausedSet(bool paused);
 
     error TokenPaused();
@@ -21,7 +21,7 @@ contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
     /**
      * @notice The NFT collector of launch admin NFTs.
      */
-    IERC721 public immutable OWNERSHIP_NFT;
+    PartyTokenAdminERC721 public immutable OWNERSHIP_NFT;
 
     /**
      * @notice The ID of the specific launch admin NFT that owns this collection.
@@ -31,7 +31,6 @@ contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
     /**
      * @param name Name of the token
      * @param symbol Symbol of the token
-     * @param image Image of the token (only emitted in event, not stored in contract)
      * @param description Description of the token (only emitted in event, not stored in contract)
      * @param totalSupply Total supply of the token
      * @param receiver Where the entire supply is initially sent
@@ -42,12 +41,11 @@ contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
     constructor(
         string memory name,
         string memory symbol,
-        string memory image,
         string memory description,
         uint256 totalSupply,
         address receiver,
         address owner,
-        IERC721 ownershipNft,
+        PartyTokenAdminERC721 ownershipNft,
         uint256 ownershipNFTIds
     )
         ERC20(name, symbol)
@@ -55,7 +53,7 @@ contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
         Ownable(owner)
     {
         _mint(receiver, totalSupply);
-        emit MetadataSet(image, description);
+        emit MetadataSet(description);
 
         OWNERSHIP_NFT = ownershipNft;
         OWNERSHIP_NFT_ID = ownershipNFTIds;
@@ -96,14 +94,21 @@ contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
     /**
      * @notice Emit an event setting the metadata for the token.
      * @dev Only callable by the owner of the ownership NFT.
-     * @param image Image URI for the metadata. Generally should be an IPFS URI.
      * @param description  Plain text description of the token.
      */
-    function setMetadata(string memory image, string memory description) external {
+    function setMetadata(string memory description) external {
         if (msg.sender != OWNERSHIP_NFT.ownerOf(OWNERSHIP_NFT_ID)) {
             revert Unauthorized();
         }
-        emit MetadataSet(image, description);
+        emit MetadataSet(description);
+    }
+
+    /**
+     * @notice Returns the image for the token.
+     */
+    function getTokenImage() external view returns (string memory) {
+        (, string memory image,) = OWNERSHIP_NFT.tokenMetadatas(OWNERSHIP_NFT_ID);
+        return image;
     }
 
     /**

@@ -24,6 +24,24 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
         _lintJSON(adminNft.tokenURI(tokenId));
     }
 
+    function test_setTokenImage_storageReflected() external {
+        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
+        (, string memory image,) = adminNft.tokenMetadatas(tokenId);
+        assertEq(image, "test_image_url");
+
+        adminNft.setTokenImage(tokenId, "new image url");
+        (, image,) = adminNft.tokenMetadatas(tokenId);
+        assertEq(image, "new image url");
+    }
+
+    function test_setTokenImage_onlyTokenOwner(address tokenReceiver) external {
+        vm.assume(tokenReceiver != address(this));
+        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", tokenReceiver);
+
+        vm.expectRevert(PartyTokenAdminERC721.Unauthorized.selector);
+        adminNft.setTokenImage(tokenId, "new image url");
+    }
+
     function test_mint_onlyMinter() external {
         adminNft.setIsMinter(address(this), false);
         vm.expectRevert(PartyTokenAdminERC721.OnlyMinter.selector);
