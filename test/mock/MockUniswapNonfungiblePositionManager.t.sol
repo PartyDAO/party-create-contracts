@@ -8,6 +8,7 @@ import { IMulticall } from "@uniswap/v3-periphery/contracts/interfaces/IMultical
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { WETH9 } from "./WETH.t.sol";
 import { Test } from "forge-std/src/Test.sol";
+import { MockPool } from "./MockPool.t.sol";
 
 contract MockUniswapNonfungiblePositionManager is ERC721, IMulticall, Test {
     WETH9 public immutable WETH;
@@ -73,24 +74,19 @@ contract MockUniswapNonfungiblePositionManager is ERC721, IMulticall, Test {
         uint128 amount1Max;
     }
 
+    /// @notice Transfers 10% of the pool's liquidity to the recipient
     function collect(CollectParams calldata params) external payable returns (uint256 amount0, uint256 amount1) {
         require(params.tokenId <= lastTokenId, "Nonexistent");
         IERC20 token0 = _token[params.tokenId].token0;
         IERC20 token1 = _token[params.tokenId].token1;
 
-        if (params.amount0Max == type(uint128).max) {
-            amount0 = 1000e18;
-        } else {
-            amount0 = params.amount0Max;
-        }
-        if (params.amount1Max == type(uint128).max) {
-            amount1 = 1e18;
-        } else {
-            amount1 = params.amount1Max;
-        }
+        address pool = FACTORY.getPool(address(token0), address(token1), 10_000);
 
-        deal(address(token0), params.recipient, amount0);
-        deal(address(token1), params.recipient, amount1);
+        amount0 = token0.balanceOf(pool) * 1000 / 10_000;
+        amount1 = token1.balanceOf(pool) * 1000 / 10_000;
+
+        MockPool(pool).transferToken(token0, params.recipient, amount0);
+        MockPool(pool).transferToken(token1, params.recipient, amount1);
     }
 
     function positions(uint256 tokenId)

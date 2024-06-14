@@ -99,6 +99,11 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         assertEq(token.getVotes(steve.addr), 1000);
     }
 
+    function test_delegate_notAddressZero() external {
+        vm.expectRevert(PartyERC20.InvalidDelegate.selector);
+        token.delegate(address(0));
+    }
+
     function test_VERSION() external view {
         assertEq(token.VERSION(), "0.1.0");
     }

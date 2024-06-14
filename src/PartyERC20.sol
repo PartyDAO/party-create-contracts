@@ -12,6 +12,7 @@ contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
 
     error TokenPaused();
     error Unauthorized();
+    error InvalidDelegate();
 
     /**
      * @notice Whether the token is paused. Can be toggled by owner.
@@ -112,11 +113,21 @@ contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
     }
 
     /**
-     * @notice Auto self delegate
+     * @dev Auto self delegate
      */
     function delegates(address account) public view override returns (address) {
-        address delegate = super.delegates(account);
-        return delegate == address(0) ? account : delegate;
+        address storedDelegate = super.delegates(account);
+        return storedDelegate == address(0) ? account : storedDelegate;
+    }
+
+    /**
+     * @dev Disable delegating to address(0).
+     */
+    function delegate(address delegatee) public override {
+        if (delegatee == address(0)) {
+            revert InvalidDelegate();
+        }
+        super.delegate(delegatee);
     }
 
     /**
