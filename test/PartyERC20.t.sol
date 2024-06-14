@@ -3,6 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { PartyERC20 } from "../src/PartyERC20.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { UseImmutableCreate2Factory } from "./util/UseImmutableCreate2Factory.t.sol";
 import { PartyTokenAdminERC721 } from "../src/PartyTokenAdminERC721.sol";
 
@@ -16,27 +17,17 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         super.setUp();
         ownershipNft = new PartyTokenAdminERC721("Ownership NFT", "ON", address(this));
         token = PartyERC20(
-            factory.safeCreate2(
-                bytes32(0),
-                abi.encodePacked(
-                    type(PartyERC20).creationCode,
-                    abi.encode(
-                        "PartyERC20",
-                        "PARTY",
-                        "MyImage",
-                        "MyDescription",
-                        100_000,
-                        address(this),
-                        address(this),
-                        ownershipNft,
-                        1
-                    )
-                )
-            )
+            factory.safeCreate2(bytes32(0), abi.encodePacked(type(PartyERC20).creationCode, abi.encode(ownershipNft)))
         );
+        token.initialize("PartyERC20", "PARTY", "MyImage", "MyDescription", 100_000, address(this), address(this), 1);
 
         ownershipNft.setIsMinter(address(this), true);
         ownershipNft.mint("Ownership NFT", "MyImage", address(this));
+    }
+
+    function test_cannotReinit() public {
+        vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
+        token.initialize("PartyERC20", "PARTY", "MyImage", "MyDescription", 100_000, address(this), address(this), 1);
     }
 
     function test_transfer_failsWhenPaused(address tokenHolder) external {

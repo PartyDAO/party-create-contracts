@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -16,6 +17,7 @@ import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/int
 contract PartyTokenLauncher is Ownable, IERC721Receiver {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
+    using Clones for address;
 
     event LaunchCreated(
         uint32 indexed launchId,
@@ -100,6 +102,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     }
 
     PartyTokenAdminERC721 public immutable TOKEN_ADMIN_ERC721;
+    PartyERC20 public immutable PARTY_ERC20_LOGIC;
     INonfungiblePositionManager public immutable POSTION_MANAGER;
     IUniswapV3Factory public immutable UNISWAP_FACTORY;
     uint24 public immutable POOL_FEE;
@@ -116,6 +119,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     constructor(
         address payable partyDAO,
         PartyTokenAdminERC721 tokenAdminERC721,
+        PartyERC20 partyERC20Logic,
         INonfungiblePositionManager positionManager,
         IUniswapV3Factory uniswapFactory,
         address weth,
@@ -125,6 +129,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         Ownable(partyDAO)
     {
         TOKEN_ADMIN_ERC721 = tokenAdminERC721;
+        PARTY_ERC20_LOGIC = partyERC20Logic;
         POSTION_MANAGER = positionManager;
         UNISWAP_FACTORY = uniswapFactory;
         WETH = weth;
@@ -165,7 +170,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(erc20Args.name, erc20Args.image, msg.sender);
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
-        PartyERC20 token = new PartyERC20{ salt: keccak256(abi.encodePacked(id, block.chainid, block.timestamp)) }(
+        PartyERC20 token = PartyERC20(
+            address(PARTY_ERC20_LOGIC).cloneDeterministic(
+                keccak256(abi.encodePacked(id, block.chainid, block.timestamp))
+            )
+        );
+        token.initialize(
             erc20Args.name,
             erc20Args.symbol,
             erc20Args.image,
@@ -173,7 +183,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             erc20Args.totalSupply,
             address(this),
             address(this),
-            TOKEN_ADMIN_ERC721,
             tokenAdminId
         );
         token.setPaused(true);

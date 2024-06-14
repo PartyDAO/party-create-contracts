@@ -7,6 +7,7 @@ import "../src/PartyTokenLauncher.sol";
 
 contract PartyTokenLauncherForkTest is Test {
     PartyTokenLauncher launch;
+    PartyERC20 partyERC20Logic;
     PartyTokenAdminERC721 creatorNFT;
     address payable partyDAO;
     address positionLocker;
@@ -24,8 +25,10 @@ contract PartyTokenLauncherForkTest is Test {
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         positionLocker = vm.createWallet("Position Locker").addr;
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
-        launch =
-            new PartyTokenLauncher(partyDAO, creatorNFT, positionManager, uniswapFactory, weth, poolFee, positionLocker);
+        partyERC20Logic = new PartyERC20(creatorNFT);
+        launch = new PartyTokenLauncher(
+            partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, weth, poolFee, positionLocker
+        );
         creatorNFT.setIsMinter(address(launch), true);
     }
 
