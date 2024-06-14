@@ -135,7 +135,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
      * @notice Returns the image for the token.
      */
     function getTokenImage() external view returns (string memory) {
-        (, string memory image,) = OWNERSHIP_NFT.tokenMetadatas(ownershipNftId);
+        (, string memory image,,,) = OWNERSHIP_NFT.tokenMetadatas(ownershipNftId);
         return image;
     }
 

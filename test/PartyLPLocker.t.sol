@@ -67,7 +67,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     function test_onERC721Received_lockLp(address additionalFeeRecipient) external {
         vm.assume(additionalFeeRecipient != address(this));
 
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(token), address(locker), address(this));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](1);
@@ -87,7 +87,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_onERC721Received_invalidFeeBps_token0() external {
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(0), address(locker), address(this));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](2);
@@ -111,7 +111,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_onERC721Received_invalidFeeBps_token1() external {
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(token), address(locker), address(this));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](2);
@@ -152,7 +152,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         vm.assume(adminNftHolder != lpAddress);
         vm.assume(additionalFeeRecipient != lpAddress);
 
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", adminNftHolder);
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(token), address(locker), adminNftHolder);
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](1);

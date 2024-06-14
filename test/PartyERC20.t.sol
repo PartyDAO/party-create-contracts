@@ -23,7 +23,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         token.initialize("PartyERC20", "PARTY", "MyDescription", 100_000, address(this), address(this), 1);
 
         ownershipNft.setIsMinter(address(this), true);
-        ownershipNft.mint("Ownership NFT", "MyImage", address(this));
+        ownershipNft.mint("Ownership NFT", "MyImage", address(0), address(0), address(this));
     }
 
     function test_cannotReinit() public {

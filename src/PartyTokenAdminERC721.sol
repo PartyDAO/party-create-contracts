@@ -4,6 +4,7 @@ pragma solidity ^0.8.25;
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC4906 } from "@openzeppelin/contracts/interfaces/IERC4906.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     error OnlyMinter();
@@ -21,7 +22,9 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     struct TokenMetadata {
         string name;
         string image;
-        bool launchSuccessful;
+        address erc20;
+        address lpLocker;
+        uint256 uncxLockId;
     }
 
     /**
@@ -60,12 +63,16 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
      * @notice Mints a new token sequentially
      * @param name The name of the new token
      * @param image The image of the new token
+     * @param erc20 The address of the ERC20 token this NFT administers
+     * @param lpLocker The address of the LP locker this NFT claims from
      * @param receiver The address that will receive the token
      * @return The new token ID
      */
     function mint(
         string calldata name,
         string calldata image,
+        address erc20,
+        address lpLocker,
         address receiver
     )
         external
@@ -74,7 +81,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     {
         uint256 tokenId = ++totalSupply;
         _mint(receiver, tokenId);
-        tokenMetadatas[tokenId] = TokenMetadata(name, image, false);
+        tokenMetadatas[tokenId] = TokenMetadata(name, image, erc20, lpLocker, 0);
 
         return tokenId;
     }
@@ -82,9 +89,11 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     /**
      * @notice Set the metadata of a token indicating the launch succeeded
      * @param tokenId The token ID for which the launch succeeded
+     * @param uncxLockId The lock ID for the UNCX lock this token is associated with
      */
-    function setLaunchSucceeded(uint256 tokenId) external onlyMinter {
-        tokenMetadatas[tokenId].launchSuccessful = true;
+    function setLaunchSucceeded(uint256 tokenId, uint256 uncxLockId) external onlyMinter {
+        if (tokenMetadatas[tokenId].uncxLockId != 0) revert Unauthorized();
+        tokenMetadatas[tokenId].uncxLockId = uncxLockId;
         emit MetadataUpdate(tokenId);
     }
 
@@ -95,14 +104,40 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         _requireOwned(tokenId);
 
         TokenMetadata memory tokenMetadata = tokenMetadatas[tokenId];
+
+        string memory description;
+        if (tokenMetadata.uncxLockId == 0) {
+            description = string.concat(
+                "This NFT has metadata admin controls over the ERC20 token at ",
+                Strings.toHexString(tokenMetadata.erc20),
+                ". The holder of this NFT can change the image metadata of the token on-chain."
+                " The holder of this NFT will be able to claim LP fees from the permanently locked",
+                " LP position if the token launch succeeds. The holder of this NFT cannot perform any",
+                " actions that affect this token's functionality or supply."
+            );
+        } else {
+            description = string.concat(
+                "This NFT has metadata admin controls over the ERC20 token at ",
+                Strings.toHexString(tokenMetadata.erc20),
+                ". The holder of this NFT can change the image metadata of the token on-chain.",
+                " The holder of this NFT can also claim LP fees from the permanently locked LP position at ",
+                Strings.toHexString(tokenMetadata.lpLocker),
+                " lockId ",
+                Strings.toString(tokenMetadata.uncxLockId),
+                ". The holder of this NFT cannot perform any actions that affect this token's functionality or supply."
+            );
+        }
+
         return string.concat(
             "data:application/json;utf8,",
             "{\"name\":\"",
             tokenMetadata.name,
+            "\",\"description\":\"",
+            description,
             "\",\"image\":\"",
             tokenMetadata.image,
             "\",\"attributes\":[{\"launched\":",
-            tokenMetadata.launchSuccessful ? "true" : "false",
+            tokenMetadata.uncxLockId != 0 ? "true" : "false",
             "}]}"
         );
     }
