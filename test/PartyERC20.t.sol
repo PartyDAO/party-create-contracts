@@ -57,6 +57,14 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         token.transferFrom(tokenHolder, address(this), 1000);
     }
 
+    function test_getTokenImage_fetchFromToken() external {
+        assertEq(token.getTokenImage(), "MyImage");
+
+        ownershipNft.setTokenImage(1, "NewImage");
+
+        assertEq(token.getTokenImage(), "NewImage");
+    }
+
     function test_transferFrom_needsApproval(address tokenHolder, address spender) external {
         vm.assume(tokenHolder != address(this) && spender != address(this));
         vm.assume(tokenHolder != address(0) && spender != address(0));

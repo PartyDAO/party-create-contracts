@@ -36,6 +36,7 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
 
     function test_setTokenImage_onlyTokenOwner(address tokenReceiver) external {
         vm.assume(tokenReceiver != address(this));
+        vm.assume(tokenReceiver != address(0));
         uint256 tokenId = adminNft.mint("TestToken", "test_image_url", tokenReceiver);
 
         vm.expectRevert(PartyTokenAdminERC721.Unauthorized.selector);
