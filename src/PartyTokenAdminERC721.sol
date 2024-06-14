@@ -8,6 +8,9 @@ import { IERC4906 } from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     error OnlyMinter();
 
+    event ContractURIUpdated();
+    event IsMinterSet(address indexed who, bool isMinter);
+
     modifier onlyMinter() {
         if (!isMinter[msg.sender]) revert OnlyMinter();
         _;
@@ -34,6 +37,11 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
      */
     uint256 public totalSupply;
 
+    /**
+     * @notice Contract URI string which is settable by the owner.
+     */
+    string public contractURI;
+
     constructor(string memory name, string memory symbol, address owner) ERC721(name, symbol) Ownable(owner) { }
 
     /**
@@ -43,6 +51,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
      */
     function setIsMinter(address who, bool isMinter_) external onlyOwner {
         isMinter[who] = isMinter_;
+        emit IsMinterSet(who, isMinter_);
     }
 
     /**
@@ -90,10 +99,15 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
             tokenMetadata.name,
             "\",\"image\":\"",
             tokenMetadata.image,
-            "\",\"attributes\":[{\"launch_succeeded\":",
+            "\",\"attributes\":[{\"launched\":",
             tokenMetadata.launchSuccessful ? "true" : "false",
             "}]}"
         );
+    }
+
+    function setContractURI(string memory contractURI_) external onlyOwner {
+        contractURI = contractURI_;
+        emit ContractURIUpdated();
     }
 
     /**
@@ -101,6 +115,6 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
      * change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.3.0";
+        return "0.4.0";
     }
 }
