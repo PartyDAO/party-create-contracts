@@ -107,6 +107,14 @@ contract PartyERC20 is ERC20Permit, ERC20Votes, Ownable {
     }
 
     /**
+     * @notice Auto self delegate
+     */
+    function delegates(address account) public view override returns (address) {
+        address delegate = super.delegates(account);
+        return delegate == address(0) ? account : delegate;
+    }
+
+    /**
      * @dev Returns the version of the contract. Decimal versions indicate change in logic. Number change indicates
      *      change in ABI.
      */
