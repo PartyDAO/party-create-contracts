@@ -20,6 +20,9 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
     uint256 lpTokenId;
     PartyERC20 token;
 
+    IERC20 token0;
+    IERC20 token1;
+
     function setUp() external {
         uniswapV3Deployment = _deployUniswapV3();
         adminToken = new PartyTokenAdminERC721("Party Admin", "PA", address(this));
@@ -33,13 +36,13 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
 
         token.approve(uniswapV3Deployment.POSITION_MANAGER, 0.1 ether);
 
-        address token0 = uniswapV3Deployment.WETH < address(token) ? uniswapV3Deployment.WETH : address(token);
-        address token1 = uniswapV3Deployment.WETH < address(token) ? address(token) : uniswapV3Deployment.WETH;
+        token0 = IERC20(uniswapV3Deployment.WETH < address(token) ? uniswapV3Deployment.WETH : address(token));
+        token1 = IERC20(uniswapV3Deployment.WETH < address(token) ? address(token) : uniswapV3Deployment.WETH);
 
-        IUniswapV3Factory(uniswapV3Deployment.FACTORY).createPool(token0, token1, 10_000);
+        IUniswapV3Factory(uniswapV3Deployment.FACTORY).createPool(address(token0), address(token1), 10_000);
         INonfungiblePositionManager.MintParams memory mintParams = INonfungiblePositionManager.MintParams({
-            token0: token0,
-            token1: token1,
+            token0: address(token0),
+            token1: address(token1),
             fee: 10_000, // 1 %
             tickLower: 0, // not used in test
             tickUpper: 0, // not used in test
@@ -152,6 +155,8 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_collect_feeDistributed(address additionalFeeRecipient, address adminNftHolder) external {
+        address lpAddress =
+            IUniswapV3Factory(uniswapV3Deployment.FACTORY).getPool(uniswapV3Deployment.WETH, address(token), 10_000);
         vm.assume(additionalFeeRecipient != address(this));
         vm.assume(additionalFeeRecipient != address(0));
         vm.assume(adminNftHolder != address(this));
@@ -159,6 +164,8 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
         vm.assume(adminNftHolder != additionalFeeRecipient);
         vm.assume(adminNftHolder != address(locker));
         vm.assume(additionalFeeRecipient != address(locker));
+        vm.assume(adminNftHolder != lpAddress);
+        vm.assume(additionalFeeRecipient != lpAddress);
 
         uint256 adminTokenId = adminToken.mint("Party Token", "image", adminNftHolder);
 
@@ -179,9 +186,6 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
             address(this), address(locker), lpTokenId, abi.encode(lpInfo)
         );
-
-        IERC20 token0 = IERC20(uniswapV3Deployment.WETH < address(token) ? uniswapV3Deployment.WETH : address(token));
-        IERC20 token1 = IERC20(uniswapV3Deployment.WETH < address(token) ? address(token) : uniswapV3Deployment.WETH);
 
         (uint256 amount0, uint256 amount1) = locker.collect(lpTokenId + 1);
         assertEq(
