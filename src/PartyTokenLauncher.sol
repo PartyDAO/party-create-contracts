@@ -48,7 +48,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     error LaunchInvalid();
     error TargetContributionZero();
     error TotalSupplyMismatch();
+    error TotalSupplyExceedsLimit();
     error InvalidMerkleProof();
+    error InvalidBps();
     error ContributionZero();
     error ContributionsExceedsMaxPerAddress(
         uint96 newContribution, uint96 existingContributionsByAddress, uint96 maxContributionPerAddress
@@ -149,6 +151,10 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
                 != launchArgs.numTokensForLP + launchArgs.numTokensForDistribution + launchArgs.numTokensForRecipient
         ) {
             revert TotalSupplyMismatch();
+        }
+        if (erc20Args.totalSupply > type(uint96).max) revert TotalSupplyExceedsLimit();
+        if (launchArgs.finalizationFeeBps > 1e4 || launchArgs.partyDAOPoolFeeBps > 1e4 || launchArgs.withdrawalFeeBps > 1e4) {
+            revert InvalidBps();
         }
 
         id = ++numOfLaunches;
