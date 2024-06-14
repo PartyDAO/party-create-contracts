@@ -112,7 +112,9 @@ contract PartyTokenLauncherTest is Test {
         launch.contribute{ value: 8 ether }(launchId, "", new bytes32[](0));
 
         vm.prank(contributor);
-        vm.expectRevert(abi.encodeWithSelector(PartyTokenLauncher.ContributionsExceedsMaxPerAddress.selector, 1, 8 ether, 8 ether));
+        vm.expectRevert(
+            abi.encodeWithSelector(PartyTokenLauncher.ContributionsExceedsMaxPerAddress.selector, 1, 8 ether, 8 ether)
+        );
         launch.contribute{ value: 1 }(launchId, "", new bytes32[](0));
     }
 

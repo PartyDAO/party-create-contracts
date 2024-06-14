@@ -50,7 +50,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     error TotalSupplyMismatch();
     error InvalidMerkleProof();
     error ContributionZero();
-    error ContributionsExceedsMaxPerAddress(uint96 newContribution, uint96 existingContributionsByAddress, uint96 maxContributionPerAddress);
+    error ContributionsExceedsMaxPerAddress(
+        uint96 newContribution, uint96 existingContributionsByAddress, uint96 maxContributionPerAddress
+    );
     error ContributionExceedsTarget(uint96 amountOverTarget, uint96 targetContribution);
     error InvalidLifecycleState(LaunchLifecycle actual, LaunchLifecycle expected);
 
@@ -142,8 +144,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         returns (uint32 id)
     {
         if (launchArgs.targetContribution == 0) revert TargetContributionZero();
-        if (erc20Args.totalSupply != launchArgs.numTokensForLP + launchArgs.numTokensForDistribution + launchArgs.numTokensForRecipient)
+        if (
+            erc20Args.totalSupply
+                != launchArgs.numTokensForLP + launchArgs.numTokensForDistribution + launchArgs.numTokensForRecipient
+        ) {
             revert TotalSupplyMismatch();
+        }
 
         id = ++numOfLaunches;
 
@@ -236,13 +242,23 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         returns (Launch memory, uint96)
     {
         LaunchLifecycle launchLifecycle = _getLaunchLifecycle(launch);
-        if (launchLifecycle != LaunchLifecycle.Active) revert InvalidLifecycleState(launchLifecycle, LaunchLifecycle.Active);
+        if (launchLifecycle != LaunchLifecycle.Active) {
+            revert InvalidLifecycleState(launchLifecycle, LaunchLifecycle.Active);
+        }
         if (amount == 0) revert ContributionZero();
-        uint96 ethContributed = _convertTokensReceivedToETHContributed(uint96(launch.token.balanceOf(msg.sender)), launch.targetContribution, launch.numTokensForDistribution);
-        if (ethContributed + amount > launch.maxContributionPerAddress) revert ContributionsExceedsMaxPerAddress(amount, ethContributed, launch.maxContributionPerAddress);
+        uint96 ethContributed = _convertTokensReceivedToETHContributed(
+            uint96(launch.token.balanceOf(msg.sender)), launch.targetContribution, launch.numTokensForDistribution
+        );
+        if (ethContributed + amount > launch.maxContributionPerAddress) {
+            revert ContributionsExceedsMaxPerAddress(amount, ethContributed, launch.maxContributionPerAddress);
+        }
 
         uint96 newTotalContributions = launch.totalContributions + amount;
-        if (newTotalContributions > launch.targetContribution) revert ContributionExceedsTarget(newTotalContributions - launch.targetContribution, launch.targetContribution);
+        if (newTotalContributions > launch.targetContribution) {
+            revert ContributionExceedsTarget(
+                newTotalContributions - launch.targetContribution, launch.targetContribution
+            );
+        }
 
         // Update state
         launches[id].totalContributions = launch.totalContributions = newTotalContributions;
@@ -399,7 +415,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     function withdraw(uint32 launchId) external returns (uint96 ethReceived) {
         Launch memory launch = launches[launchId];
         LaunchLifecycle launchLifecycle = _getLaunchLifecycle(launch);
-        if (launchLifecycle != LaunchLifecycle.Active) revert InvalidLifecycleState(launchLifecycle, LaunchLifecycle.Active);
+        if (launchLifecycle != LaunchLifecycle.Active) {
+            revert InvalidLifecycleState(launchLifecycle, LaunchLifecycle.Active);
+        }
 
         uint96 tokensReceived = uint96(launch.token.balanceOf(msg.sender));
         uint96 ethContributed = _convertTokensReceivedToETHContributed(
