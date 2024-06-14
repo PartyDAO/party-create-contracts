@@ -54,7 +54,17 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
         adminNft.setLaunchSucceeded(tokenId);
     }
 
+    event ContractURIUpdated();
+
+    function test_setContractURI() external {
+        vm.expectEmit(true, true, true, true);
+        emit ContractURIUpdated();
+        adminNft.setContractURI("test_contract_uri");
+
+        assertEq(adminNft.contractURI(), "test_contract_uri");
+    }
+
     function test_VERSION() external {
-        assertEq(adminNft.VERSION(), "0.3.0");
+        assertEq(adminNft.VERSION(), "0.4.0");
     }
 }
