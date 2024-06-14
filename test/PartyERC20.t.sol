@@ -21,14 +21,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
                 abi.encodePacked(
                     type(PartyERC20).creationCode,
                     abi.encode(
-                        "PartyERC20",
-                        "PARTY",
-                        "MyDescription",
-                        100_000,
-                        address(this),
-                        address(this),
-                        ownershipNft,
-                        1
+                        "PartyERC20", "PARTY", "MyDescription", 100_000, address(this), address(this), ownershipNft, 1
                     )
                 )
             )
