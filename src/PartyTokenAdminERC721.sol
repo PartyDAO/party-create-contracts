@@ -99,7 +99,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
             tokenMetadata.name,
             "\",\"image\":\"",
             tokenMetadata.image,
-            "\",\"attributes\":[{\"launch_succeeded\":",
+            "\",\"attributes\":[{\"launched\":",
             tokenMetadata.launchSuccessful ? "true" : "false",
             "}]}"
         );
