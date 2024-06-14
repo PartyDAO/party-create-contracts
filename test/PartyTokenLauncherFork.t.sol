@@ -53,6 +53,7 @@ contract PartyTokenLauncherForkTest is Test {
             numTokensForDistribution: 300_000_000e18,
             numTokensForRecipient: 200_000_000e18,
             targetContribution: 10 ether,
+            maxContributionPerAddress: 9 ether,
             merkleRoot: bytes32(0),
             recipient: recipient,
             finalizationFeeBps: 100, // 1%
@@ -63,7 +64,7 @@ contract PartyTokenLauncherForkTest is Test {
         vm.prank(creator);
         uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
 
-        (PartyERC20 token,, uint96 totalContributions,,,,,,,,) = launch.launches(launchId);
+        (PartyERC20 token,, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
 
         uint96 expectedTotalContributions;
         uint96 expectedPartyDAOBalance;
@@ -85,7 +86,7 @@ contract PartyTokenLauncherForkTest is Test {
         expectedTotalContributions += 5 ether;
         {
             uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 5 ether);
-            (,, totalContributions,,,,,,,,) = launch.launches(launchId);
+            (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor1), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
@@ -130,7 +131,7 @@ contract PartyTokenLauncherForkTest is Test {
         {
             uint96 expectedTokensReceived =
                 launch.convertETHContributedToTokensReceived(launchId, remainingContribution);
-            (,, totalContributions,,,,,,,,) = launch.launches(launchId);
+            (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor2), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);

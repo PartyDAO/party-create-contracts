@@ -66,6 +66,7 @@ contract PartyTokenLauncherTest is Test {
             numTokensForDistribution: 300_000 ether,
             numTokensForRecipient: 200_000 ether,
             targetContribution: 10 ether,
+            maxContributionPerAddress: 9 ether,
             merkleRoot: bytes32(0),
             recipient: recipient,
             finalizationFeeBps: finalizationFeeBps,
@@ -77,7 +78,7 @@ contract PartyTokenLauncherTest is Test {
         launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Active);
-        (PartyERC20 token,, uint96 totalContributions,,,,,,,,) = launch.launches(launchId);
+        (PartyERC20 token,, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 1 ether);
         assertEq(token.balanceOf(creator), expectedTokensReceived);
         assertEq(token.totalSupply(), erc20Args.totalSupply);
@@ -94,7 +95,7 @@ contract PartyTokenLauncherTest is Test {
         vm.prank(contributor);
         launch.contribute{ value: 5 ether }(launchId, "Adding funds", new bytes32[](0));
 
-        (PartyERC20 token,, uint96 totalContributions,,,,,,,,) = launch.launches(launchId);
+        (PartyERC20 token,, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 5 ether);
         assertEq(token.balanceOf(contributor), expectedTokensReceived);
         assertEq(totalContributions, 6 ether);
@@ -102,11 +103,21 @@ contract PartyTokenLauncherTest is Test {
         assertEq(address(launch).balance, 6 ether);
     }
 
+    function test_contribute_cannotExceedMaxContributionPerAddress() public {
+        uint32 launchId = test_createLaunch_works();
+        address contributor = vm.createWallet("Contributor").addr;
+        vm.deal(contributor, 10 ether);
+
+        vm.prank(contributor);
+        vm.expectRevert("Contribution exceeds max contribution per address");
+        launch.contribute{ value: 10 ether }(launchId, "Exceeding max contribution", new bytes32[](0));
+    }
+
     function test_withdraw_works() public {
         uint32 launchId = test_createLaunch_works();
         address creator = vm.createWallet("Creator").addr;
 
-        (PartyERC20 token,, uint96 totalContributions,,,,,,,,) = launch.launches(launchId);
+        (PartyERC20 token,, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
         uint96 tokenBalance = uint96(token.balanceOf(creator));
 
         vm.prank(creator);
@@ -117,14 +128,14 @@ contract PartyTokenLauncherTest is Test {
         assertEq(creator.balance, expectedETHReturned - withdrawalFee);
         assertEq(token.balanceOf(creator), 0);
         assertEq(partyDAO.balance, withdrawalFee);
-        (,, totalContributions,,,,,,,,) = launch.launches(launchId);
+        (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
         assertEq(totalContributions, 0);
     }
 
     function test_finalize_works() public {
         uint32 launchId = test_createLaunch_works();
         address contributor = vm.createWallet("Final Contributor").addr;
-        (PartyERC20 token, uint96 targetContribution, uint96 totalContributions,,,,,,,,) = launch.launches(launchId);
+        (PartyERC20 token, uint96 targetContribution, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
         uint96 remainingContribution = targetContribution - totalContributions;
         vm.deal(contributor, remainingContribution);
 
@@ -132,7 +143,7 @@ contract PartyTokenLauncherTest is Test {
         launch.contribute{ value: remainingContribution }(launchId, "Finalize", new bytes32[](0));
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
-        (,, totalContributions,,,,,,,,) = launch.launches(launchId);
+        (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, remainingContribution);
         assertEq(token.balanceOf(contributor), expectedTokensReceived);
         assertEq(totalContributions, targetContribution);

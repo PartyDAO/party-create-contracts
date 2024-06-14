@@ -68,6 +68,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint96 numTokensForDistribution;
         uint96 numTokensForRecipient;
         uint96 targetContribution;
+        uint96 maxContributionPerAddress;
         bytes32 merkleRoot;
         address recipient;
         uint16 finalizationFeeBps;
@@ -79,6 +80,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         PartyERC20 token;
         uint96 targetContribution;
         uint96 totalContributions;
+        uint96 maxContributionPerAddress;
         uint96 numTokensForLP;
         uint96 numTokensForDistribution;
         uint96 numTokensForRecipient;
@@ -166,6 +168,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             token: token,
             targetContribution: launchArgs.targetContribution,
             totalContributions: 0,
+            maxContributionPerAddress: launchArgs.maxContributionPerAddress,
             numTokensForLP: launchArgs.numTokensForLP,
             numTokensForDistribution: launchArgs.numTokensForDistribution,
             numTokensForRecipient: launchArgs.numTokensForRecipient,
@@ -234,6 +237,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     {
         require(_getLaunchLifecycle(launch) == LaunchLifecycle.Active, "Launch is not active");
         require(amount > 0, "Contribution must be greater than zero");
+        require(amount <= launch.maxContributionPerAddress, "Contribution exceeds max contribution per address");
 
         uint96 newTotalContributions = launch.totalContributions + amount;
         require(newTotalContributions <= launch.targetContribution, "Contribution exceeds amount to reach target");
