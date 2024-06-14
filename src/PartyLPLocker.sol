@@ -7,7 +7,7 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IUNCX } from "./external/IUNCX.sol";
 
-contract NFTBoundLPLocker is IERC721Receiver {
+contract PartyLPLocker is IERC721Receiver {
     error OnlyPositionManager();
     error InvalidFeeBps();
 

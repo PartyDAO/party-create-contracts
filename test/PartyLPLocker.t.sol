@@ -6,15 +6,15 @@ import { IUniswapV3Factory } from "@uniswap/v3-core/contracts/interfaces/IUniswa
 import { MockUniswapV3Deployer } from "./mock/MockUniswapV3Deployer.t.sol";
 import { Test } from "forge-std/src/Test.sol";
 import { PartyTokenAdminERC721 } from "src/PartyTokenAdminERC721.sol";
-import { NFTBoundLPLocker } from "src/NFTBoundLPLocker.sol";
+import { PartyLPLocker } from "src/PartyLPLocker.sol";
 import { MockUNCX } from "./mock/MockUNCX.t.sol";
 import { PartyERC20 } from "src/PartyERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
+contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     MockUniswapV3Deployer.UniswapV3Deployment uniswapV3Deployment;
     PartyTokenAdminERC721 adminToken;
-    NFTBoundLPLocker locker;
+    PartyLPLocker locker;
     MockUNCX uncx;
 
     uint256 lpTokenId;
@@ -28,8 +28,7 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
         adminToken = new PartyTokenAdminERC721("Party Admin", "PA", address(this));
         adminToken.setIsMinter(address(this), true);
         uncx = new MockUNCX();
-        locker =
-            new NFTBoundLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
+        locker = new PartyLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
         token = new PartyERC20(
             "Party Token", "PT", "image", "description", 1 ether, address(this), address(this), adminToken, 0
         );
@@ -59,8 +58,7 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_constructor() external {
-        locker =
-            new NFTBoundLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
+        locker = new PartyLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
 
         assertEq(address(locker.POSITION_MANAGER()), uniswapV3Deployment.POSITION_MANAGER);
         assertEq(address(locker.PARTY_TOKEN_ADMIN()), address(adminToken));
@@ -72,14 +70,14 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
 
         uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
 
-        NFTBoundLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
-            new NFTBoundLPLocker.AdditionalFeeRecipient[](1);
-        additionalFeeRecipients[0] = NFTBoundLPLocker.AdditionalFeeRecipient({
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](1);
+        additionalFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
             recipient: additionalFeeRecipient,
             percentageBps: 1000,
-            feeType: NFTBoundLPLocker.FeeType.Token0
+            feeType: PartyLPLocker.FeeType.Token0
         });
-        NFTBoundLPLocker.LPInfo memory lpInfo = NFTBoundLPLocker.LPInfo({
+        PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
             token0: uniswapV3Deployment.WETH,
             token1: address(token),
             partyTokenAdminId: adminTokenId,
@@ -96,26 +94,26 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
     function test_onERC721Received_invalidFeeBps_token0() external {
         uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
 
-        NFTBoundLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
-            new NFTBoundLPLocker.AdditionalFeeRecipient[](2);
-        additionalFeeRecipients[0] = NFTBoundLPLocker.AdditionalFeeRecipient({
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](2);
+        additionalFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
             recipient: address(this),
             percentageBps: 1000,
-            feeType: NFTBoundLPLocker.FeeType.Both
+            feeType: PartyLPLocker.FeeType.Both
         });
-        additionalFeeRecipients[1] = NFTBoundLPLocker.AdditionalFeeRecipient({
+        additionalFeeRecipients[1] = PartyLPLocker.AdditionalFeeRecipient({
             recipient: address(this),
             percentageBps: 9001,
-            feeType: NFTBoundLPLocker.FeeType.Token0
+            feeType: PartyLPLocker.FeeType.Token0
         });
-        NFTBoundLPLocker.LPInfo memory lpInfo = NFTBoundLPLocker.LPInfo({
+        PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
             token0: address(0),
             token1: address(0),
             partyTokenAdminId: adminTokenId,
             additionalFeeRecipients: additionalFeeRecipients
         });
 
-        vm.expectRevert(NFTBoundLPLocker.InvalidFeeBps.selector);
+        vm.expectRevert(PartyLPLocker.InvalidFeeBps.selector);
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
             address(this), address(locker), lpTokenId, abi.encode(lpInfo)
         );
@@ -124,33 +122,33 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
     function test_onERC721Received_invalidFeeBps_token1() external {
         uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
 
-        NFTBoundLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
-            new NFTBoundLPLocker.AdditionalFeeRecipient[](2);
-        additionalFeeRecipients[0] = NFTBoundLPLocker.AdditionalFeeRecipient({
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](2);
+        additionalFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
             recipient: address(this),
             percentageBps: 1000,
-            feeType: NFTBoundLPLocker.FeeType.Token1
+            feeType: PartyLPLocker.FeeType.Token1
         });
-        additionalFeeRecipients[1] = NFTBoundLPLocker.AdditionalFeeRecipient({
+        additionalFeeRecipients[1] = PartyLPLocker.AdditionalFeeRecipient({
             recipient: address(this),
             percentageBps: 9001,
-            feeType: NFTBoundLPLocker.FeeType.Both
+            feeType: PartyLPLocker.FeeType.Both
         });
-        NFTBoundLPLocker.LPInfo memory lpInfo = NFTBoundLPLocker.LPInfo({
+        PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
             token0: address(0),
             token1: address(0),
             partyTokenAdminId: adminTokenId,
             additionalFeeRecipients: additionalFeeRecipients
         });
 
-        vm.expectRevert(NFTBoundLPLocker.InvalidFeeBps.selector);
+        vm.expectRevert(PartyLPLocker.InvalidFeeBps.selector);
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
             address(this), address(locker), lpTokenId, abi.encode(lpInfo)
         );
     }
 
     function test_onERC721Received_notPositionManager() external {
-        vm.expectRevert(NFTBoundLPLocker.OnlyPositionManager.selector);
+        vm.expectRevert(PartyLPLocker.OnlyPositionManager.selector);
         locker.onERC721Received(address(0), address(0), 0, "");
     }
 
@@ -169,14 +167,14 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
 
         uint256 adminTokenId = adminToken.mint("Party Token", "image", adminNftHolder);
 
-        NFTBoundLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
-            new NFTBoundLPLocker.AdditionalFeeRecipient[](1);
-        additionalFeeRecipients[0] = NFTBoundLPLocker.AdditionalFeeRecipient({
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](1);
+        additionalFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
             recipient: additionalFeeRecipient,
             percentageBps: 1000,
-            feeType: NFTBoundLPLocker.FeeType.Both
+            feeType: PartyLPLocker.FeeType.Both
         });
-        NFTBoundLPLocker.LPInfo memory lpInfo = NFTBoundLPLocker.LPInfo({
+        PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
             token0: uniswapV3Deployment.WETH,
             token1: address(token),
             partyTokenAdminId: adminTokenId,
