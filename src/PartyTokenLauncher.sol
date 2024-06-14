@@ -162,7 +162,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(erc20Args.name, erc20Args.image, msg.sender);
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
-        PartyERC20 token = new PartyERC20{ salt: keccak256(abi.encodePacked(id, block.chainid)) }(
+        PartyERC20 token = new PartyERC20{
+            salt: keccak256(abi.encodePacked(id, block.chainid, block.timestamp))
+        }(
             erc20Args.name,
             erc20Args.symbol,
             erc20Args.image,
