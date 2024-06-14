@@ -5,6 +5,7 @@ import { PartyERC20 } from "../src/PartyERC20.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { UseImmutableCreate2Factory } from "./util/UseImmutableCreate2Factory.t.sol";
 import { PartyTokenAdminERC721 } from "../src/PartyTokenAdminERC721.sol";
+import { Vm } from "forge-std/src/Test.sol";
 
 contract PartyERC20Test is UseImmutableCreate2Factory {
     PartyERC20 public token;
@@ -89,6 +90,13 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
 
         vm.expectRevert(PartyERC20.Unauthorized.selector);
         token.setMetadata("NewImage", "NewDescription");
+    }
+
+    function test_getVotes_verifyAutodelegation() external {
+        Vm.Wallet memory steve = vm.createWallet("steve");
+        token.transfer(steve.addr, 1000);
+
+        assertEq(token.getVotes(steve.addr), 1000);
     }
 
     function test_VERSION() external view {
