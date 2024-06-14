@@ -396,7 +396,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         return uint160(Math.sqrt(numerator / denominator) * (2 ** 96) / 1e9);
     }
 
-    function withdraw(uint32 launchId) external {
+    function withdraw(uint32 launchId) external returns (uint96 ethReceived) {
         Launch memory launch = launches[launchId];
         LaunchLifecycle launchLifecycle = _getLaunchLifecycle(launch);
         if (launchLifecycle != LaunchLifecycle.Active) revert InvalidLifecycleState(launchLifecycle, LaunchLifecycle.Active);
@@ -406,6 +406,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             tokensReceived, launch.targetContribution, launch.numTokensForDistribution
         );
         uint96 withdrawalFee = (ethContributed * launch.withdrawalFeeBps) / 1e4;
+        ethReceived = ethContributed - withdrawalFee;
 
         // Pull tokens from sender
         launch.token.transferFrom(msg.sender, address(this), tokensReceived);
@@ -417,7 +418,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         payable(owner()).call{ value: withdrawalFee, gas: 1e5 }("");
 
         // Transfer ETH to sender
-        payable(msg.sender).call{ value: ethContributed - withdrawalFee, gas: 1e5 }("");
+        payable(msg.sender).call{ value: ethReceived, gas: 1e5 }("");
 
         emit Withdraw(launchId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
     }

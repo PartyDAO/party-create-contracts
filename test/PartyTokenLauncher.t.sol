@@ -124,11 +124,12 @@ contract PartyTokenLauncherTest is Test {
         uint96 tokenBalance = uint96(token.balanceOf(creator));
 
         vm.prank(creator);
-        launch.withdraw(launchId);
+        uint96 ethReceived = launch.withdraw(launchId);
 
         uint96 expectedETHReturned = launch.convertTokensReceivedToETHContributed(launchId, tokenBalance);
         uint96 withdrawalFee = (expectedETHReturned * withdrawalFeeBps) / 10_000;
         assertEq(creator.balance, expectedETHReturned - withdrawalFee);
+        assertEq(ethReceived, expectedETHReturned - withdrawalFee);
         assertEq(token.balanceOf(creator), 0);
         assertEq(partyDAO.balance, withdrawalFee);
         (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
