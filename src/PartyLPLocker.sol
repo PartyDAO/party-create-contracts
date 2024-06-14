@@ -24,6 +24,11 @@ contract PartyLPLocker is IERC721Receiver {
     }
 
     struct LPInfo {
+        uint256 partyTokenAdminId;
+        AdditionalFeeRecipient[] additionalFeeRecipients;
+    }
+
+    struct LockStorage {
         address token0;
         address token1;
         uint256 partyTokenAdminId;
@@ -34,7 +39,7 @@ contract PartyLPLocker is IERC721Receiver {
     IERC721 public immutable PARTY_TOKEN_ADMIN;
     IUNCX public immutable UNCX;
 
-    mapping(uint256 => LPInfo) public lpInfos;
+    mapping(uint256 => LockStorage) public lockStorages;
 
     constructor(INonfungiblePositionManager positionManager, IERC721 partyTokenAdmin, IUNCX uncx) {
         POSITION_MANAGER = positionManager;
@@ -42,6 +47,13 @@ contract PartyLPLocker is IERC721Receiver {
         UNCX = uncx;
     }
 
+    /**
+     * @notice Send a UNI-V3 LP NFT to this contract via `safeTransferFrom` to lock it in UNCX and collect fees. The
+     * data must be encoded as an LPInfo struct.
+     * @dev `additionalFeeRecipients` must contain at least one additional fee recipient. The first member of this array
+     * gets all fees if UNCX forces through a collect call bypassing logic in this contract. This is not expected to
+     * ever occur.
+     */
     function onERC721Received(address, address, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
 
@@ -67,14 +79,15 @@ contract PartyLPLocker is IERC721Receiver {
         {
             (, bytes memory res) =
                 address(POSITION_MANAGER).staticcall(abi.encodeCall(POSITION_MANAGER.positions, (tokenId)));
-            (,, lpInfos[lockId].token0, lpInfos[lockId].token1) = abi.decode(res, (uint96, address, address, address));
+            (,, lockStorages[lockId].token0, lockStorages[lockId].token1) =
+                abi.decode(res, (uint96, address, address, address));
         }
-        lpInfos[lockId].partyTokenAdminId = lpInfo.partyTokenAdminId;
+        lockStorages[lockId].partyTokenAdminId = lpInfo.partyTokenAdminId;
 
         uint256 token0TotalBps;
         uint256 token1TotalBps;
         for (uint256 i = 0; i < lpInfo.additionalFeeRecipients.length; i++) {
-            lpInfos[lockId].additionalFeeRecipients.push(lpInfo.additionalFeeRecipients[i]);
+            lockStorages[lockId].additionalFeeRecipients.push(lpInfo.additionalFeeRecipients[i]);
 
             FeeType feeType = lpInfo.additionalFeeRecipients[i].feeType;
             token0TotalBps += feeType == FeeType.Token0 || feeType == FeeType.Both
@@ -90,27 +103,34 @@ contract PartyLPLocker is IERC721Receiver {
         return IERC721Receiver.onERC721Received.selector;
     }
 
+    /**
+     * @notice Collect fees for a given UNCX lock
+     * @dev Can be called by anyone
+     * @param lockId UNCX lock ID
+     * @return amount0 Amount of token0 collected total
+     * @return amount1 Amount of token1 collected total
+     */
     function collect(uint256 lockId) external returns (uint256 amount0, uint256 amount1) {
-        LPInfo memory lpInfo = lpInfos[lockId];
+        LockStorage memory lockStorage = lockStorages[lockId];
 
         (amount0, amount1,,) = UNCX.collect(lockId, address(this), type(uint128).max, type(uint128).max);
 
-        for (uint256 i = 0; i < lpInfo.additionalFeeRecipients.length; i++) {
-            AdditionalFeeRecipient memory recipient = lpInfo.additionalFeeRecipients[i];
+        for (uint256 i = 0; i < lockStorage.additionalFeeRecipients.length; i++) {
+            AdditionalFeeRecipient memory recipient = lockStorage.additionalFeeRecipients[i];
 
             if (recipient.feeType == FeeType.Token0 || recipient.feeType == FeeType.Both) {
-                IERC20(lpInfo.token0).transfer(recipient.recipient, amount0 * recipient.percentageBps / 10_000);
+                IERC20(lockStorage.token0).transfer(recipient.recipient, amount0 * recipient.percentageBps / 10_000);
             }
 
             if (recipient.feeType == FeeType.Token1 || recipient.feeType == FeeType.Both) {
-                IERC20(lpInfo.token1).transfer(recipient.recipient, amount1 * recipient.percentageBps / 10_000);
+                IERC20(lockStorage.token1).transfer(recipient.recipient, amount1 * recipient.percentageBps / 10_000);
             }
         }
 
-        address remainingReceiver = PARTY_TOKEN_ADMIN.ownerOf(lpInfo.partyTokenAdminId);
+        address remainingReceiver = PARTY_TOKEN_ADMIN.ownerOf(lockStorage.partyTokenAdminId);
 
-        IERC20(lpInfo.token0).transfer(remainingReceiver, IERC20(lpInfo.token0).balanceOf(address(this)));
-        IERC20(lpInfo.token1).transfer(remainingReceiver, IERC20(lpInfo.token1).balanceOf(address(this)));
+        IERC20(lockStorage.token0).transfer(remainingReceiver, IERC20(lockStorage.token0).balanceOf(address(this)));
+        IERC20(lockStorage.token1).transfer(remainingReceiver, IERC20(lockStorage.token1).balanceOf(address(this)));
     }
 
     /**

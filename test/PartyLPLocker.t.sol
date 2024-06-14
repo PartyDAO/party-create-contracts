@@ -78,8 +78,6 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             feeType: PartyLPLocker.FeeType.Token0
         });
         PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
-            token0: uniswapV3Deployment.WETH,
-            token1: address(token),
             partyTokenAdminId: adminTokenId,
             additionalFeeRecipients: additionalFeeRecipients
         });
@@ -107,8 +105,6 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             feeType: PartyLPLocker.FeeType.Token0
         });
         PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
-            token0: address(0),
-            token1: address(0),
             partyTokenAdminId: adminTokenId,
             additionalFeeRecipients: additionalFeeRecipients
         });
@@ -135,8 +131,6 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             feeType: PartyLPLocker.FeeType.Both
         });
         PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
-            token0: address(0),
-            token1: address(0),
             partyTokenAdminId: adminTokenId,
             additionalFeeRecipients: additionalFeeRecipients
         });
@@ -175,8 +169,6 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             feeType: PartyLPLocker.FeeType.Both
         });
         PartyLPLocker.LPInfo memory lpInfo = PartyLPLocker.LPInfo({
-            token0: uniswapV3Deployment.WETH,
-            token1: address(token),
             partyTokenAdminId: adminTokenId,
             additionalFeeRecipients: additionalFeeRecipients
         });
