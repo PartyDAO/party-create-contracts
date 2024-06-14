@@ -13,9 +13,6 @@ import { IUniswapV3Factory } from "@uniswap/v3-core/contracts/interfaces/IUniswa
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 
-// TODO: Add functions to move ETH from one token to another with one fn call?
-// e.g. withdrawAndContribute(address tokenAddressToWithdraw, address tokenAddressToContributeTo)
-
 contract PartyTokenLauncher is Ownable, IERC721Receiver {
     using MerkleProof for bytes32[];
     using SafeCast for uint256;
@@ -49,6 +46,13 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     event RecipientTransfer(uint32 indexed launchId, IERC20 indexed token, address indexed recipient, uint96 numTokens);
 
     error LaunchInvalid();
+    error TargetContributionZero();
+    error TotalSupplyMismatch();
+    error InvalidMerkleProof();
+    error ContributionZero();
+    error ContributionsExceedsMaxPerAddress(uint96 newContribution, uint96 existingContributionsByAddress, uint96 maxContributionPerAddress);
+    error ContributionExceedsTarget(uint96 amountOverTarget, uint96 targetContribution);
+    error InvalidLifecycleState(LaunchLifecycle actual, LaunchLifecycle expected);
 
     enum LaunchLifecycle {
         Active,
@@ -99,7 +103,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     int24 public immutable MAX_TICK;
     address public immutable WETH;
 
-    // TODO: Pack storage
     uint32 public numOfLaunches;
     address public positionLocker;
 
@@ -138,12 +141,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         payable
         returns (uint32 id)
     {
-        require(launchArgs.targetContribution > 0, "Target contribution must be greater than zero");
-        require(
-            erc20Args.totalSupply
-                == launchArgs.numTokensForLP + launchArgs.numTokensForDistribution + launchArgs.numTokensForRecipient,
-            "Total supply must be at least the sum of tokens"
-        );
+        if (launchArgs.targetContribution == 0) revert TargetContributionZero();
+        if (erc20Args.totalSupply != launchArgs.numTokensForLP + launchArgs.numTokensForDistribution + launchArgs.numTokensForRecipient)
+            revert TotalSupplyMismatch();
 
         id = ++numOfLaunches;
 
@@ -219,7 +219,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         // Verify merkle proof if merkle root is set
         if (launch.merkleRoot != bytes32(0)) {
             bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
-            require(MerkleProof.verifyCalldata(merkleProof, launch.merkleRoot, leaf), "Invalid merkle proof");
+            if (!MerkleProof.verifyCalldata(merkleProof, launch.merkleRoot, leaf)) revert InvalidMerkleProof();
         }
 
         (launch, tokensReceived) = _contribute(launchId, launch, msg.sender, msg.value.toUint96(), comment);
@@ -235,12 +235,14 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         private
         returns (Launch memory, uint96)
     {
-        require(_getLaunchLifecycle(launch) == LaunchLifecycle.Active, "Launch is not active");
-        require(amount > 0, "Contribution must be greater than zero");
-        require(amount <= launch.maxContributionPerAddress, "Contribution exceeds max contribution per address");
+        LaunchLifecycle launchLifecycle = _getLaunchLifecycle(launch);
+        if (launchLifecycle != LaunchLifecycle.Active) revert InvalidLifecycleState(launchLifecycle, LaunchLifecycle.Active);
+        if (amount == 0) revert ContributionZero();
+        uint96 ethContributed = _convertTokensReceivedToETHContributed(uint96(launch.token.balanceOf(msg.sender)), launch.targetContribution, launch.numTokensForDistribution);
+        if (ethContributed + amount > launch.maxContributionPerAddress) revert ContributionsExceedsMaxPerAddress(amount, ethContributed, launch.maxContributionPerAddress);
 
         uint96 newTotalContributions = launch.totalContributions + amount;
-        require(newTotalContributions <= launch.targetContribution, "Contribution exceeds amount to reach target");
+        if (newTotalContributions > launch.targetContribution) revert ContributionExceedsTarget(newTotalContributions - launch.targetContribution, launch.targetContribution);
 
         // Update state
         launches[id].totalContributions = launch.totalContributions = newTotalContributions;
@@ -396,7 +398,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
     function withdraw(uint32 launchId) external {
         Launch memory launch = launches[launchId];
-        require(_getLaunchLifecycle(launch) == LaunchLifecycle.Active, "Launch is not active");
+        LaunchLifecycle launchLifecycle = _getLaunchLifecycle(launch);
+        if (launchLifecycle != LaunchLifecycle.Active) revert InvalidLifecycleState(launchLifecycle, LaunchLifecycle.Active);
 
         uint96 tokensReceived = uint96(launch.token.balanceOf(msg.sender));
         uint96 ethContributed = _convertTokensReceivedToETHContributed(
