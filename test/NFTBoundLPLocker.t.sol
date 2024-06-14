@@ -90,6 +90,62 @@ contract NFTBoundLPLockerTest is MockUniswapV3Deployer, Test {
         vm.assume(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).ownerOf(lpTokenId) == address(uncx));
     }
 
+    function test_onERC721Received_invalidFeeBps_token0() external {
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+
+        NFTBoundLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new NFTBoundLPLocker.AdditionalFeeRecipient[](2);
+        additionalFeeRecipients[0] = NFTBoundLPLocker.AdditionalFeeRecipient({
+            recipient: address(this),
+            percentageBps: 1000,
+            feeType: NFTBoundLPLocker.FeeType.Both
+        });
+        additionalFeeRecipients[1] = NFTBoundLPLocker.AdditionalFeeRecipient({
+            recipient: address(this),
+            percentageBps: 9001,
+            feeType: NFTBoundLPLocker.FeeType.Token0
+        });
+        NFTBoundLPLocker.LPInfo memory lpInfo = NFTBoundLPLocker.LPInfo({
+            token0: address(0),
+            token1: address(0),
+            partyTokenAdminId: adminTokenId,
+            additionalFeeRecipients: additionalFeeRecipients
+        });
+
+        vm.expectRevert(NFTBoundLPLocker.InvalidFeeBps.selector);
+        INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo)
+        );
+    }
+
+    function test_onERC721Received_invalidFeeBps_token1() external {
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+
+        NFTBoundLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new NFTBoundLPLocker.AdditionalFeeRecipient[](2);
+        additionalFeeRecipients[0] = NFTBoundLPLocker.AdditionalFeeRecipient({
+            recipient: address(this),
+            percentageBps: 1000,
+            feeType: NFTBoundLPLocker.FeeType.Token1
+        });
+        additionalFeeRecipients[1] = NFTBoundLPLocker.AdditionalFeeRecipient({
+            recipient: address(this),
+            percentageBps: 9001,
+            feeType: NFTBoundLPLocker.FeeType.Both
+        });
+        NFTBoundLPLocker.LPInfo memory lpInfo = NFTBoundLPLocker.LPInfo({
+            token0: address(0),
+            token1: address(0),
+            partyTokenAdminId: adminTokenId,
+            additionalFeeRecipients: additionalFeeRecipients
+        });
+
+        vm.expectRevert(NFTBoundLPLocker.InvalidFeeBps.selector);
+        INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo)
+        );
+    }
+
     function test_onERC721Received_notPositionManager() external {
         vm.expectRevert(NFTBoundLPLocker.OnlyPositionManager.selector);
         locker.onERC721Received(address(0), address(0), 0, "");
