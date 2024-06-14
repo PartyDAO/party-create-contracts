@@ -141,7 +141,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         require(launchArgs.targetContribution > 0, "Target contribution must be greater than zero");
         require(
             erc20Args.totalSupply
-                >= launchArgs.numTokensForLP + launchArgs.numTokensForDistribution + launchArgs.numTokensForRecipient,
+                == launchArgs.numTokensForLP + launchArgs.numTokensForDistribution + launchArgs.numTokensForRecipient,
             "Total supply must be at least the sum of tokens"
         );
 
