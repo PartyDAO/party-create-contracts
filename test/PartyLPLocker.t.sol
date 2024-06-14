@@ -29,7 +29,8 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         adminToken.setIsMinter(address(this), true);
         uncx = new MockUNCX();
         locker = new PartyLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
-        token = new PartyERC20("Party Token", "PT", "description", 1 ether, address(this), address(this), adminToken, 0);
+        token = new PartyERC20(adminToken);
+        token.initialize("Party Token", "PT", "description", 1 ether, address(this), address(this), 0);
 
         token.approve(uniswapV3Deployment.POSITION_MANAGER, 0.1 ether);
 
