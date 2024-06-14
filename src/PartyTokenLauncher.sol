@@ -153,7 +153,10 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             revert TotalSupplyMismatch();
         }
         if (erc20Args.totalSupply > type(uint96).max) revert TotalSupplyExceedsLimit();
-        if (launchArgs.finalizationFeeBps > 1e4 || launchArgs.partyDAOPoolFeeBps > 1e4 || launchArgs.withdrawalFeeBps > 1e4) {
+        if (
+            launchArgs.finalizationFeeBps > 1e4 || launchArgs.partyDAOPoolFeeBps > 1e4
+                || launchArgs.withdrawalFeeBps > 1e4
+        ) {
             revert InvalidBps();
         }
 
@@ -162,9 +165,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(erc20Args.name, erc20Args.image, msg.sender);
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
-        PartyERC20 token = new PartyERC20{
-            salt: keccak256(abi.encodePacked(id, block.chainid, block.timestamp))
-        }(
+        PartyERC20 token = new PartyERC20{ salt: keccak256(abi.encodePacked(id, block.chainid, block.timestamp)) }(
             erc20Args.name,
             erc20Args.symbol,
             erc20Args.image,
