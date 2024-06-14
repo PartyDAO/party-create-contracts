@@ -178,7 +178,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         token.initialize(
             erc20Args.name,
             erc20Args.symbol,
-            erc20Args.image,
             erc20Args.description,
             erc20Args.totalSupply,
             address(this),

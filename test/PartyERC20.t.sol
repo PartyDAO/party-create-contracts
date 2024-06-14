@@ -12,7 +12,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
     PartyERC20 public token;
     PartyTokenAdminERC721 public ownershipNft;
 
-    event MetadataSet(string image, string description);
+    event MetadataSet(string description);
 
     function setUp() public override {
         super.setUp();
@@ -20,7 +20,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         token = PartyERC20(
             factory.safeCreate2(bytes32(0), abi.encodePacked(type(PartyERC20).creationCode, abi.encode(ownershipNft)))
         );
-        token.initialize("PartyERC20", "PARTY", "MyImage", "MyDescription", 100_000, address(this), address(this), 1);
+        token.initialize("PartyERC20", "PARTY", "MyDescription", 100_000, address(this), address(this), 1);
 
         ownershipNft.setIsMinter(address(this), true);
         ownershipNft.mint("Ownership NFT", "MyImage", address(this));
@@ -28,7 +28,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
 
     function test_cannotReinit() public {
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
-        token.initialize("PartyERC20", "PARTY", "MyImage", "MyDescription", 100_000, address(this), address(this), 1);
+        token.initialize("PartyERC20", "PARTY", "MyDescription", 100_000, address(this), address(this), 1);
     }
 
     function test_transfer_failsWhenPaused(address tokenHolder) external {
@@ -57,6 +57,14 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         token.transferFrom(tokenHolder, address(this), 1000);
     }
 
+    function test_getTokenImage_fetchFromToken() external {
+        assertEq(token.getTokenImage(), "MyImage");
+
+        ownershipNft.setTokenImage(1, "NewImage");
+
+        assertEq(token.getTokenImage(), "NewImage");
+    }
+
     function test_transferFrom_needsApproval(address tokenHolder, address spender) external {
         vm.assume(tokenHolder != address(this) && spender != address(this));
         vm.assume(tokenHolder != address(0) && spender != address(0));
@@ -72,15 +80,15 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
 
     function test_setMetadata() external {
         vm.expectEmit(true, true, true, true);
-        emit MetadataSet("NewImage", "NewDescription");
-        token.setMetadata("NewImage", "NewDescription");
+        emit MetadataSet("NewDescription");
+        token.setMetadata("NewDescription");
     }
 
     function test_setMetadata_onlyNFTHolder() external {
         ownershipNft.transferFrom(address(this), address(2), 1);
 
         vm.expectRevert(PartyERC20.Unauthorized.selector);
-        token.setMetadata("NewImage", "NewDescription");
+        token.setMetadata("NewDescription");
     }
 
     function test_getVotes_verifyAutodelegation() external {
@@ -88,6 +96,11 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         token.transfer(steve.addr, 1000);
 
         assertEq(token.getVotes(steve.addr), 1000);
+    }
+
+    function test_delegate_notAddressZero() external {
+        vm.expectRevert(PartyERC20.InvalidDelegate.selector);
+        token.delegate(address(0));
     }
 
     function test_VERSION() external view {

@@ -9,14 +9,15 @@ import { ERC20VotesUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { PartyTokenAdminERC721 } from "./PartyTokenAdminERC721.sol";
 
 contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpgradeable {
-    event MetadataSet(string image, string description);
+    event MetadataSet(string description);
     event PausedSet(bool paused);
 
     error TokenPaused();
     error Unauthorized();
+    error InvalidDelegate();
 
     /**
      * @notice Whether the token is paused. Can be toggled by owner.
@@ -31,12 +32,12 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
     /**
      * @notice The NFT collector of launch admin NFTs.
      */
-    IERC721 public immutable OWNERSHIP_NFT;
+    PartyTokenAdminERC721 public immutable OWNERSHIP_NFT;
 
     /**
      * @param ownershipNft Ownership NFT contract
      */
-    constructor(IERC721 ownershipNft) {
+    constructor(PartyTokenAdminERC721 ownershipNft) {
         OWNERSHIP_NFT = ownershipNft;
     }
 
@@ -44,7 +45,6 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
      * @notice Initialize the contract.
      * @param name Name of the token
      * @param symbol Symbol of the token
-     * @param image Image of the token (only emitted in event, not stored in contract)
      * @param description Description of the token (only emitted in event, not stored in contract)
      * @param totalSupply Total supply of the token
      * @param receiver Where the entire supply is initially sent
@@ -54,7 +54,6 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
     function initialize(
         string memory name,
         string memory symbol,
-        string memory image,
         string memory description,
         uint256 totalSupply,
         address receiver,
@@ -69,7 +68,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
         __Ownable_init(owner);
 
         _mint(receiver, totalSupply);
-        emit MetadataSet(image, description);
+        emit MetadataSet(description);
 
         ownershipNftId = ownershipNFTIds_;
     }
@@ -123,22 +122,39 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
     /**
      * @notice Emit an event setting the metadata for the token.
      * @dev Only callable by the owner of the ownership NFT.
-     * @param image Image URI for the metadata. Generally should be an IPFS URI.
      * @param description  Plain text description of the token.
      */
-    function setMetadata(string memory image, string memory description) external {
+    function setMetadata(string memory description) external {
         if (msg.sender != OWNERSHIP_NFT.ownerOf(ownershipNftId)) {
             revert Unauthorized();
         }
-        emit MetadataSet(image, description);
+        emit MetadataSet(description);
     }
 
     /**
-     * @notice Auto self delegate
+     * @notice Returns the image for the token.
+     */
+    function getTokenImage() external view returns (string memory) {
+        (, string memory image,) = OWNERSHIP_NFT.tokenMetadatas(ownershipNftId);
+        return image;
+    }
+
+    /**
+     * @dev Auto self delegate
      */
     function delegates(address account) public view override returns (address) {
-        address delegate = super.delegates(account);
-        return delegate == address(0) ? account : delegate;
+        address storedDelegate = super.delegates(account);
+        return storedDelegate == address(0) ? account : storedDelegate;
+    }
+
+    /**
+     * @dev Disable delegating to address(0).
+     */
+    function delegate(address delegatee) public override {
+        if (delegatee == address(0)) {
+            revert InvalidDelegate();
+        }
+        super.delegate(delegatee);
     }
 
     /**
