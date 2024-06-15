@@ -67,7 +67,13 @@ contract PartyTokenLauncherForkTest is Test {
         vm.prank(creator);
         uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
 
-        (PartyERC20 token,, uint96 totalContributions,,,,,,,,,) = launch.launches(launchId);
+        PartyERC20 token;
+        uint96 totalContributions;
+        {
+            // To avoid stack too deep errors
+            (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+            (token,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
+        }
 
         uint96 expectedTotalContributions;
         uint96 expectedPartyDAOBalance;
@@ -89,7 +95,8 @@ contract PartyTokenLauncherForkTest is Test {
         expectedTotalContributions += 5 ether;
         {
             uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 5 ether);
-            (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
+            (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+            (,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor1), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
@@ -134,7 +141,11 @@ contract PartyTokenLauncherForkTest is Test {
         {
             uint96 expectedTokensReceived =
                 launch.convertETHContributedToTokensReceived(launchId, remainingContribution);
-            (,, totalContributions,,,,,,,,,) = launch.launches(launchId);
+            {
+                // To avoid stack too deep errors
+                (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+                (,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
+            }
             assertEq(totalContributions, expectedTotalContributions);
             assertEq(token.balanceOf(contributor2), expectedTokensReceived);
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
