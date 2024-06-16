@@ -95,10 +95,15 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         _requireOwned(tokenId);
 
         TokenMetadata memory tokenMetadata = tokenMetadatas[tokenId];
+        string memory description =
+            "The holder of this NFT can claim LP fees from a permanently locked LP position for this token.";
+
         return string.concat(
             "data:application/json;utf8,",
             "{\"name\":\"",
             tokenMetadata.name,
+            "\",\"description\":\"",
+            description,
             "\",\"image\":\"",
             tokenMetadata.image,
             "\",\"attributes\":[{\"launched\":",
