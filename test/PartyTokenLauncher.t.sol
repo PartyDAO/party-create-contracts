@@ -73,8 +73,8 @@ contract PartyTokenLauncherTest is Test {
             merkleRoot: bytes32(0),
             recipient: recipient,
             finalizationFeeBps: finalizationFeeBps,
-            partyDAOPoolFeeBps: partyDAOPoolFeeBps,
-            withdrawalFeeBps: withdrawalFeeBps
+            withdrawalFeeBps: withdrawalFeeBps,
+            additionalLPFeeRecipients: new PartyLPLocker.AdditionalFeeRecipient[](0)
         });
 
         vm.prank(creator);
