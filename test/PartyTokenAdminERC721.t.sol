@@ -87,7 +87,7 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
         assertEq(adminNft.contractURI(), "test_contract_uri");
     }
 
-    function test_VERSION() external {
+    function test_VERSION() external view {
         assertEq(adminNft.VERSION(), "0.4.0");
     }
 }

@@ -2,9 +2,9 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { IUNCX, INonfungiblePositionManager } from "src/external/IUNCX.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-contract MockUNCX is IUNCX {
+contract MockUNCX is IUNCX, IERC721Receiver {
     struct LockInfo {
         INonfungiblePositionManager nftPositionManager;
         uint256 nft_id;
@@ -37,5 +37,19 @@ contract MockUNCX is IUNCX {
                 amount1Max: amount1Max
             })
         );
+    }
+
+    function getFee(string memory) external pure returns (IUNCX.FeeStruct memory) {
+        return IUNCX.FeeStruct({
+            name: "LVP",
+            lpFee: 80,
+            collectFee: 100,
+            flatFee: 30_000_000_000_000_000,
+            flatFeeToken: address(0)
+        });
+    }
+
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 }
