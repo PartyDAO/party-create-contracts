@@ -4,6 +4,14 @@ pragma solidity ^0.8.25;
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 
 interface IUNCX {
+    struct FeeStruct {
+        string name; // name by which the fee is accessed
+        uint256 lpFee; // 100 = 1%, 10,000 = 100%
+        uint256 collectFee; // 100 = 1%, 10,000 = 100%
+        uint256 flatFee; // in amount tokens
+        address flatFeeToken; // address(0) = ETH otherwise ERC20 address expected
+    }
+
     struct LockParams {
         INonfungiblePositionManager nftPositionManager; // the NFT Position manager of the Uniswap V3 fork
         uint256 nft_id; // the nft token_id
@@ -27,4 +35,6 @@ interface IUNCX {
     )
         external
         returns (uint256 amount0, uint256 amount1, uint256 fee0, uint256 fee1);
+
+    function getFee(string memory _name) external view returns (FeeStruct memory);
 }

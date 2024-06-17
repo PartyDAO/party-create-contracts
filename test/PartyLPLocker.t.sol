@@ -79,8 +79,11 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         PartyLPLocker.LPInfo memory lpInfo =
             PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
+        uint96 flatLockFee = locker.getFlatLockFee();
+        vm.deal(address(locker), flatLockFee);
+
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
-            address(this), address(locker), lpTokenId, abi.encode(lpInfo)
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
         );
 
         vm.assume(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).ownerOf(lpTokenId) == address(uncx));
@@ -104,9 +107,12 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         PartyLPLocker.LPInfo memory lpInfo =
             PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
+        uint96 flatLockFee = locker.getFlatLockFee();
+        vm.deal(address(locker), flatLockFee);
+
         vm.expectRevert(PartyLPLocker.InvalidFeeBps.selector);
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
-            address(this), address(locker), lpTokenId, abi.encode(lpInfo)
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
         );
     }
 
@@ -128,9 +134,12 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         PartyLPLocker.LPInfo memory lpInfo =
             PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
+        uint96 flatLockFee = locker.getFlatLockFee();
+        vm.deal(address(locker), flatLockFee);
+
         vm.expectRevert(PartyLPLocker.InvalidFeeBps.selector);
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
-            address(this), address(locker), lpTokenId, abi.encode(lpInfo)
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
         );
     }
 
@@ -164,8 +173,11 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         PartyLPLocker.LPInfo memory lpInfo =
             PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
+        uint96 flatLockFee = locker.getFlatLockFee();
+        vm.deal(address(locker), flatLockFee);
+
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
-            address(this), address(locker), lpTokenId, abi.encode(lpInfo)
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
         );
 
         (uint256 amount0, uint256 amount1) = locker.collect(lpTokenId + 1);
@@ -176,7 +188,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         assertEq(token1.balanceOf(adminToken.ownerOf(adminTokenId)), amount1 - 1000 * amount1 / 10_000);
     }
 
-    function test_VERSION() external {
+    function test_VERSION() external view {
         assertEq(locker.VERSION(), "0.1.0");
     }
 }
