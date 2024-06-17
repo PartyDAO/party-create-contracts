@@ -4,13 +4,15 @@ pragma solidity ^0.8.25;
 import "forge-std/src/Test.sol";
 
 import "../src/PartyTokenLauncher.sol";
+import "../src/PartyLPLocker.sol";
 
 contract PartyTokenLauncherForkTest is Test {
     PartyTokenLauncher launch;
     PartyERC20 partyERC20Logic;
     PartyTokenAdminERC721 creatorNFT;
+    PartyLPLocker lpLocker;
+    IUNCX uncx;
     address payable partyDAO;
-    address positionLocker;
     INonfungiblePositionManager public positionManager;
     IUniswapV3Factory public uniswapFactory;
     address payable public weth;
@@ -23,11 +25,12 @@ contract PartyTokenLauncherForkTest is Test {
         poolFee = 3000;
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
-        positionLocker = vm.createWallet("Position Locker").addr;
+        uncx = IUNCX(0x6a976ECb2377E7CbB5B48913b0faA1D7446D4dC7);
+        lpLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
-            partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, weth, poolFee, positionLocker
+            partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, weth, poolFee, address(lpLocker)
         );
         creatorNFT.setIsMinter(address(launch), true);
     }
@@ -35,6 +38,13 @@ contract PartyTokenLauncherForkTest is Test {
     function testIntegration_launchLifecycle() public {
         address creator = vm.createWallet("Creator").addr;
         address recipient = vm.createWallet("Recipient").addr;
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalLPFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](1);
+        additionalLPFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
+            recipient: vm.createWallet("AdditionalLPFeeRecipient").addr,
+            percentageBps: 1e4,
+            feeType: PartyLPLocker.FeeType.Token0
+        });
         address contributor1 = vm.createWallet("Contributor1").addr;
         address contributor2 = vm.createWallet("Contributor2").addr;
 
@@ -59,10 +69,10 @@ contract PartyTokenLauncherForkTest is Test {
             maxContributionPerAddress: 9 ether,
             merkleRoot: bytes32(0),
             recipient: recipient,
-            finalizationFeeBps: 100, // 1%
-            partyDAOPoolFeeBps: 50, // 0.5%
-            withdrawalFeeBps: 100 // 1% (same as before)
-         });
+            finalizationFeeBps: 200, // 2%
+            withdrawalFeeBps: 100, // 1%
+            additionalLPFeeRecipients: additionalLPFeeRecipients
+        });
 
         vm.prank(creator);
         uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
@@ -132,11 +142,15 @@ contract PartyTokenLauncherForkTest is Test {
         }
         {
             uint96 finalizationFee = launchArgs.finalizationFeeBps * launchArgs.targetContribution / 1e4;
+            uint96 tokenUncxFee = 80 * launchArgs.numTokensForLP / 1e4;
+            uint96 wethUncxFee = 80 * launchArgs.targetContribution / 1e4;
             expectedPartyDAOBalance += finalizationFee;
             address pool = uniswapFactory.getPool(address(token), weth, poolFee);
-            assertApproxEqRel(token.balanceOf(pool), launchArgs.numTokensForLP, 0.001e18); // 0.01% tolerance
-            assertApproxEqRel(IERC20(weth).balanceOf(pool), launchArgs.targetContribution - finalizationFee, 0.001e18); // 0.01%
+            assertApproxEqRel(token.balanceOf(pool), launchArgs.numTokensForLP - tokenUncxFee, 0.001e18); // 0.01%
                 // tolerance
+            assertApproxEqRel(
+                IERC20(weth).balanceOf(pool), launchArgs.targetContribution - finalizationFee - wethUncxFee, 0.001e18
+            ); // 0.01% tolerance
         }
         {
             uint96 expectedTokensReceived =
