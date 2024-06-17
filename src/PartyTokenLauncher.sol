@@ -51,7 +51,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
     error LaunchInvalid();
     error TargetContributionTooLow();
-    error NoAdditionalLPFeeRecipients();
+    error NoLockerFeeRecipients();
     error TotalSupplyMismatch();
     error TotalSupplyExceedsLimit();
     error InvalidMerkleProof();
@@ -66,6 +66,11 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     enum LaunchLifecycle {
         Active,
         Finalized
+    }
+
+    struct LockerFeeRecipient {
+        address recipient;
+        uint16 bps;
     }
 
     struct ERC20Args {
@@ -86,7 +91,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         address recipient;
         uint16 finalizationFeeBps;
         uint16 withdrawalFeeBps;
-        PartyLPLocker.AdditionalFeeRecipient[] additionalLPFeeRecipients;
+        LockerFeeRecipient[] lockerFeeRecipients;
     }
 
     struct Launch {
@@ -175,8 +180,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             revert TotalSupplyMismatch();
         }
         if (erc20Args.totalSupply > type(uint96).max) revert TotalSupplyExceedsLimit();
-        if (launchArgs.additionalLPFeeRecipients.length == 0) {
-            revert NoAdditionalLPFeeRecipients();
+        if (launchArgs.lockerFeeRecipients.length == 0) {
+            revert NoLockerFeeRecipients();
         }
 
         id = ++numOfLaunches;
@@ -237,8 +242,14 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         launch.finalizationFeeBps = launchArgs.finalizationFeeBps;
         launch.withdrawalFeeBps = launchArgs.withdrawalFeeBps;
         launch.lpInfo.partyTokenAdminId = tokenAdminId;
-        for (uint256 i = 0; i < launchArgs.additionalLPFeeRecipients.length; i++) {
-            launch.lpInfo.additionalFeeRecipients.push(launchArgs.additionalLPFeeRecipients[i]);
+        for (uint256 i = 0; i < launchArgs.lockerFeeRecipients.length; i++) {
+            launch.lpInfo.additionalFeeRecipients.push(
+                PartyLPLocker.AdditionalFeeRecipient({
+                    recipient: launchArgs.lockerFeeRecipients[i].recipient,
+                    percentageBps: launchArgs.lockerFeeRecipients[i].bps,
+                    feeType: WETH < address(token) ? PartyLPLocker.FeeType.Token0 : PartyLPLocker.FeeType.Token1
+                })
+            );
         }
     }
 

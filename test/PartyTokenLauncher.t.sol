@@ -59,12 +59,11 @@ contract PartyTokenLauncherTest is Test {
         address recipient = vm.createWallet("Recipient").addr;
         vm.deal(creator, 1 ether);
 
-        PartyLPLocker.AdditionalFeeRecipient[] memory additionalLPFeeRecipients =
-            new PartyLPLocker.AdditionalFeeRecipient[](1);
-        additionalLPFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
+        PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
+            new PartyTokenLauncher.LockerFeeRecipient[](1);
+        lockerFeeRecipients[0] = PartyTokenLauncher.LockerFeeRecipient({
             recipient: vm.createWallet("AdditionalLPFeeRecipient").addr,
-            percentageBps: 1e4,
-            feeType: PartyLPLocker.FeeType.Token0
+            bps: 1e4
         });
 
         PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
@@ -85,7 +84,7 @@ contract PartyTokenLauncherTest is Test {
             recipient: recipient,
             finalizationFeeBps: finalizationFeeBps,
             withdrawalFeeBps: withdrawalFeeBps,
-            additionalLPFeeRecipients: additionalLPFeeRecipients
+            lockerFeeRecipients: lockerFeeRecipients
         });
 
         vm.prank(creator);
@@ -110,12 +109,11 @@ contract PartyTokenLauncherTest is Test {
         address recipient = vm.createWallet("Recipient").addr;
         vm.deal(creator, 10 ether);
 
-        PartyLPLocker.AdditionalFeeRecipient[] memory additionalLPFeeRecipients =
-            new PartyLPLocker.AdditionalFeeRecipient[](1);
-        additionalLPFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
+        PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
+            new PartyTokenLauncher.LockerFeeRecipient[](1);
+        lockerFeeRecipients[0] = PartyTokenLauncher.LockerFeeRecipient({
             recipient: vm.createWallet("AdditionalLPFeeRecipient").addr,
-            percentageBps: 1e4,
-            feeType: PartyLPLocker.FeeType.Token0
+            bps: 1e4
         });
 
         PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
@@ -136,7 +134,7 @@ contract PartyTokenLauncherTest is Test {
             recipient: recipient,
             finalizationFeeBps: finalizationFeeBps,
             withdrawalFeeBps: withdrawalFeeBps,
-            additionalLPFeeRecipients: additionalLPFeeRecipients
+            lockerFeeRecipients: lockerFeeRecipients
         });
 
         vm.prank(creator);
