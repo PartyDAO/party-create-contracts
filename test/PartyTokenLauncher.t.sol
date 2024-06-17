@@ -102,6 +102,47 @@ contract PartyTokenLauncherTest is Test {
         assertEq(address(launch).balance, 1 ether);
     }
 
+    function test_createLaunch_withFullContribution() public returns (uint32 launchId) {
+        address creator = vm.createWallet("Creator").addr;
+        address recipient = vm.createWallet("Recipient").addr;
+        vm.deal(creator, 10 ether);
+
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalLPFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](1);
+        additionalLPFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
+            recipient: vm.createWallet("AdditionalLPFeeRecipient").addr,
+            percentageBps: 1e4,
+            feeType: PartyLPLocker.FeeType.Token0
+        });
+
+
+        PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
+            name: "NewToken",
+            symbol: "NT",
+            image: "image_url",
+            description: "New Token Description",
+            totalSupply: 1_000_000 ether
+        });
+
+        PartyTokenLauncher.LaunchArgs memory launchArgs = PartyTokenLauncher.LaunchArgs({
+            numTokensForLP: 500_000 ether,
+            numTokensForDistribution: 300_000 ether,
+            numTokensForRecipient: 200_000 ether,
+            targetContribution: 10 ether,
+            maxContributionPerAddress: 10 ether,
+            merkleRoot: bytes32(0),
+            recipient: recipient,
+            finalizationFeeBps: finalizationFeeBps,
+            withdrawalFeeBps: withdrawalFeeBps,
+            additionalLPFeeRecipients: additionalLPFeeRecipients
+        });
+
+        vm.prank(creator);
+        launchId = launch.createLaunch{ value: 10 ether }(erc20Args, launchArgs);
+
+        assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
+    }
+
     function test_contribute_works() public {
         uint32 launchId = test_createLaunch_works();
         address contributor = vm.createWallet("Contributor").addr;
