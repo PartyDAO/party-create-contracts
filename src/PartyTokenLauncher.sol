@@ -160,9 +160,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             revert TotalSupplyMismatch();
         }
         if (erc20Args.totalSupply > type(uint96).max) revert TotalSupplyExceedsLimit();
-        if (
-            launchArgs.finalizationFeeBps > 1e4 || launchArgs.withdrawalFeeBps > 1e4
-        ) {
+        if (launchArgs.finalizationFeeBps > 1e4 || launchArgs.withdrawalFeeBps > 1e4) {
             revert InvalidBps();
         }
         if (launchArgs.additionalLPFeeRecipients.length == 0) {
@@ -206,7 +204,14 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         emit LaunchCreated(id, msg.sender, token, pool, erc20Args, launchArgs);
     }
 
-    function _initializeLaunch(uint32 id, PartyERC20 token, uint256 tokenAdminId, LaunchArgs memory launchArgs) private {
+    function _initializeLaunch(
+        uint32 id,
+        PartyERC20 token,
+        uint256 tokenAdminId,
+        LaunchArgs memory launchArgs
+    )
+        private
+    {
         Launch storage launch = launches[id];
         launch.token = token;
         launch.targetContribution = launchArgs.targetContribution;
@@ -411,12 +416,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         launch.token.renounceOwnership();
 
         // Transfer LP to fee locker contract
-        POSTION_MANAGER.safeTransferFrom(
-            address(this),
-            positionLocker,
-            tokenId,
-            abi.encode(launch.lpInfo)
-        );
+        POSTION_MANAGER.safeTransferFrom(address(this), positionLocker, tokenId, abi.encode(launch.lpInfo));
 
         emit Finalized(launchId, launch.token, tokenId, amountForPool);
     }
