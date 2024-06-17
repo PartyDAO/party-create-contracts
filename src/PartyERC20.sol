@@ -49,7 +49,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
      * @param totalSupply Total supply of the token
      * @param receiver Where the entire supply is initially sent
      * @param owner Initial owner of the contract
-     * @param adminNFTIds_ Admin NFT ID
+     * @param adminNFTId_ Admin NFT ID
      */
     function initialize(
         string memory name,
@@ -58,7 +58,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
         uint256 totalSupply,
         address receiver,
         address owner,
-        uint256 adminNFTIds_
+        uint256 adminNFTId_
     )
         external
         initializer
@@ -70,7 +70,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
         _mint(receiver, totalSupply);
         emit MetadataSet(description);
 
-        adminNftId = adminNFTIds_;
+        adminNftId = adminNFTId_;
     }
 
     /**
