@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.25;
 
+import { ILocker } from "./interfaces/ILocker.sol";
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IUNCX } from "./external/IUNCX.sol";
 
-contract PartyLPLocker is IERC721Receiver {
+contract PartyLPLocker is ILocker, IERC721Receiver {
     error OnlyPositionManager();
     error InvalidFeeBps();
 
@@ -57,7 +58,7 @@ contract PartyLPLocker is IERC721Receiver {
     function onERC721Received(address, address, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
 
-        LPInfo memory lpInfo = abi.decode(data, (LPInfo));
+        (LPInfo memory lpInfo, uint256 uncxFlatFee) = abi.decode(data, (LPInfo, uint256));
 
         // First lock in UNCX to get lockId
         IUNCX.LockParams memory lockParams = IUNCX.LockParams({
@@ -74,7 +75,7 @@ contract PartyLPLocker is IERC721Receiver {
         });
 
         POSITION_MANAGER.approve(address(UNCX), tokenId);
-        uint256 lockId = UNCX.lock(lockParams);
+        uint256 lockId = UNCX.lock{ value: uncxFlatFee }(lockParams);
 
         {
             (, bytes memory res) =
@@ -133,6 +134,10 @@ contract PartyLPLocker is IERC721Receiver {
         IERC20(lockStorage.token1).transfer(remainingReceiver, IERC20(lockStorage.token1).balanceOf(address(this)));
     }
 
+    function getFlatLockFee() external view returns (uint96) {
+        return uint96(UNCX.getFee("LVP").flatFee);
+    }
+
     /**
      * @dev Returns the version of the contract. Minor versions indicate change in logic. Major version indicates
      * change in ABI.
@@ -140,4 +145,7 @@ contract PartyLPLocker is IERC721Receiver {
     function VERSION() external pure returns (string memory) {
         return "0.1.0";
     }
+
+    /// @dev Allow receiving ETH for UNCX flat fee
+    receive() external payable { }
 }

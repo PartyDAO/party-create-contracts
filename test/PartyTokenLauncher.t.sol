@@ -5,6 +5,7 @@ import "forge-std/src/Test.sol";
 import { WETH9 } from "./mock/WETH.t.sol";
 import { MockUniswapV3Factory } from "./mock/MockUniswapV3Factory.t.sol";
 import { MockUniswapNonfungiblePositionManager } from "./mock/MockUniswapNonfungiblePositionManager.t.sol";
+import { MockUNCX, IUNCX } from "./mock/MockUNCX.t.sol";
 
 import "../src/PartyTokenLauncher.sol";
 
@@ -13,9 +14,10 @@ contract PartyTokenLauncherTest is Test {
     PartyERC20 partyERC20Logic;
     PartyTokenAdminERC721 creatorNFT;
     address payable partyDAO;
-    address positionLocker;
+    PartyLPLocker positionLocker;
     INonfungiblePositionManager public positionManager;
     IUniswapV3Factory public uniswapFactory;
+    IUNCX public uncx;
     address payable public weth;
     uint24 public poolFee;
 
@@ -29,11 +31,12 @@ contract PartyTokenLauncherTest is Test {
         positionManager = INonfungiblePositionManager(
             address(new MockUniswapNonfungiblePositionManager(address(weth), address(uniswapFactory)))
         );
+        uncx = new MockUNCX();
         poolFee = 3000;
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
-        positionLocker = vm.createWallet("Position Locker").addr;
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PTA721", address(this));
+        positionLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
             partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, weth, poolFee, positionLocker
@@ -48,7 +51,7 @@ contract PartyTokenLauncherTest is Test {
         assertEq(address(launch.UNISWAP_FACTORY()), address(uniswapFactory));
         assertEq(address(launch.WETH()), weth);
         assertEq(launch.POOL_FEE(), poolFee);
-        assertEq(address(launch.positionLocker()), positionLocker);
+        assertEq(address(launch.positionLocker()), address(positionLocker));
     }
 
     function test_createLaunch_works() public returns (uint32 launchId) {
@@ -196,11 +199,11 @@ contract PartyTokenLauncherTest is Test {
     }
 
     function test_setPositionLocker_works() public {
-        address newPositionLocker = vm.createWallet("New Position Locker").addr;
+        PartyLPLocker newPositionLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
         vm.prank(partyDAO);
         launch.setPositionLocker(newPositionLocker);
 
-        assertEq(launch.positionLocker(), newPositionLocker);
+        assertEq(address(launch.positionLocker()), address(newPositionLocker));
     }
 
     function test_VERSION_works() public view {
