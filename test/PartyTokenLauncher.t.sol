@@ -56,7 +56,8 @@ contract PartyTokenLauncherTest is Test {
         address recipient = vm.createWallet("Recipient").addr;
         vm.deal(creator, 1 ether);
 
-        PartyLPLocker.AdditionalFeeRecipient[] memory additionalLPFeeRecipients = new PartyLPLocker.AdditionalFeeRecipient[](1);
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalLPFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](1);
         additionalLPFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
             recipient: vm.createWallet("AdditionalLPFeeRecipient").addr,
             percentageBps: 1e4,
