@@ -190,16 +190,16 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         // Initialize new launch.
         _initializeLaunch(id, token, tokenAdminId, launchArgs);
-        Launch memory launch = launches[id];
-
-        // Initialize empty Uniswap pool. Will be liquid after launch is successful and finalized.
-        address pool = _initializeUniswapPool(launch);
 
         // Contribute initial amount, if any, and attribute the contribution to the creator
+        Launch memory launch = launches[id];
         uint96 initialContribution = msg.value.toUint96();
         if (initialContribution > 0) {
             (launch,) = _contribute(id, launch, msg.sender, initialContribution, "");
         }
+
+        // Initialize empty Uniswap pool. Will be liquid after launch is successful and finalized.
+        address pool = _initializeUniswapPool(launch);
 
         emit LaunchCreated(id, msg.sender, token, pool, erc20Args, launchArgs);
     }
