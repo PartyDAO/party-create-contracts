@@ -172,8 +172,8 @@ contract PartyTokenLauncherTest is Test {
 
         // To avoid stack too deep errors
         (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
-        (PartyERC20 token, uint96 targetContribution, uint96 totalContributions) =
-            abi.decode(res, (PartyERC20, uint96, uint96));
+        (PartyERC20 token,, uint96 totalContributions, uint96 targetContribution) =
+            abi.decode(res, (PartyERC20, bytes32, uint96, uint96));
 
         uint96 remainingContribution = targetContribution - totalContributions;
         vm.deal(contributor2, remainingContribution);
