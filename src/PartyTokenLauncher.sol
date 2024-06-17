@@ -242,7 +242,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     /**
      * @notice Get the lifecycle state of a launch.
      * @param launchId ID of the launch.
-     * @return lifecycle State of the launch.
+     * @return lifecycle Lifecycle state of the launch.
      */
     function getLaunchLifecycle(uint32 launchId) public view returns (LaunchLifecycle) {
         return _getLaunchLifecycle(launches[launchId]);
