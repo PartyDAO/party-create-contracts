@@ -115,7 +115,6 @@ contract PartyTokenLauncherTest is Test {
             feeType: PartyLPLocker.FeeType.Token0
         });
 
-
         PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
             name: "NewToken",
             symbol: "NT",
