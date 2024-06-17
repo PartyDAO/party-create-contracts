@@ -1,5 +1,5 @@
 {
-  "name": "@PartyDAO/party-swap-protocol",
+  "name": "@PartyDAO/party-token-protocol",
   "description": "",
   "version": "1.0.0",
   "author": {
@@ -8,10 +8,10 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
+    "@openzeppelin/contracts-upgradeable": "^5.0.2",
     "@uniswap/v3-core": "Uniswap/v3-core",
     "@uniswap/v3-periphery": "Uniswap/v3-periphery#0.8",
     "ethers": "^6.12.1",
-    "openzeppelin-solidity": "OpenZeppelin/openzeppelin-contracts-upgradeable",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
     "yargs": "^17.7.2"

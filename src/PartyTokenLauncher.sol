@@ -91,13 +91,13 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
     struct Launch {
         PartyERC20 token;
-        uint96 targetContribution;
+        bytes32 merkleRoot;
         uint96 totalContributions;
+        uint96 targetContribution;
         uint96 maxContributionPerAddress;
         uint96 numTokensForLP;
         uint96 numTokensForDistribution;
         uint96 numTokensForRecipient;
-        bytes32 merkleRoot;
         address recipient;
         uint16 finalizationFeeBps;
         uint16 withdrawalFeeBps;
@@ -116,7 +116,10 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     uint32 public numOfLaunches;
     ILocker public positionLocker;
 
-    /// @dev IDs start at 1.
+    /**
+     * @notice Get data about a launch by its ID.
+     * @dev IDs start at 1.
+     */
     mapping(uint32 => Launch) public launches;
 
     constructor(
@@ -145,6 +148,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         positionLocker = positionLocker_;
     }
 
+    /**
+     * @notice Create a new token launch.
+     * @param erc20Args Arguments related to the ERC20 token.
+     * @param launchArgs Arguments related to the launch.
+     * @return id ID of the new launch.
+     */
     function createLaunch(
         ERC20Args memory erc20Args,
         LaunchArgs memory launchArgs
@@ -193,16 +202,16 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         // Initialize new launch.
         _initializeLaunch(id, token, tokenAdminId, launchArgs);
+        Launch memory launch = launches[id];
+
+        // Initialize empty Uniswap pool. Will be liquid after launch is successful and finalized.
+        address pool = _initializeUniswapPool(launch, launchArgs.targetContribution - finalizationFee - flatLockFee);
 
         // Contribute initial amount, if any, and attribute the contribution to the creator
-        Launch memory launch = launches[id];
         uint96 initialContribution = msg.value.toUint96();
         if (initialContribution > 0) {
             (launch,) = _contribute(id, launch, msg.sender, initialContribution, "");
         }
-
-        // Initialize empty Uniswap pool. Will be liquid after launch is successful and finalized.
-        address pool = _initializeUniswapPool(launch, launchArgs.targetContribution - finalizationFee - flatLockFee);
 
         emit LaunchCreated(id, msg.sender, token, pool, erc20Args, launchArgs);
     }
@@ -247,6 +256,13 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         }
     }
 
+    /**
+     * @notice Contribute ETH to a launch and receive tokens.
+     * @param launchId ID of the launch.
+     * @param comment Comment for the contribution.
+     * @param merkleProof Merkle proof for the contribution.
+     * @return tokensReceived Number of tokens received for the contribution.
+     */
     function contribute(
         uint32 launchId,
         string calldata comment,
@@ -315,6 +331,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         return (launch, tokensReceived);
     }
 
+    /**
+     * @notice Convert ETH contributed to tokens received.
+     * @param launchId ID of the launch.
+     * @param ethContributed Number of ETH contributed.
+     * @return tokensReceived Number of tokens received for the contribution.
+     */
     function convertETHContributedToTokensReceived(
         uint32 launchId,
         uint96 ethContributed
@@ -329,6 +351,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         );
     }
 
+    /**
+     * @notice Convert tokens received to ETH contributed.
+     * @param launchId ID of the launch.
+     * @param tokensReceived Number of tokens received for the contribution.
+     * @return ethContributed Number of ETH contributed.
+     */
     function convertTokensReceivedToETHContributed(
         uint32 launchId,
         uint96 tokensReceived
@@ -447,6 +475,11 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         return uint160(Math.sqrt(numerator / denominator) * (2 ** 96) / 1e9);
     }
 
+    /**
+     * @notice Withdraw ETH contributed to a launch.
+     * @param launchId ID of the launch.
+     * @return ethReceived Number of ETH received for the withdrawal.
+     */
     function withdraw(uint32 launchId) external returns (uint96 ethReceived) {
         Launch memory launch = launches[launchId];
         LaunchLifecycle launchLifecycle = _getLaunchLifecycle(launch);
@@ -481,6 +514,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         positionLocker = positionLocker_;
     }
 
+    /// @notice Handle ERC721 tokens received.
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
