@@ -90,13 +90,13 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
     struct Launch {
         PartyERC20 token;
-        uint96 targetContribution;
+        bytes32 merkleRoot;
         uint96 totalContributions;
+        uint96 targetContribution;
         uint96 maxContributionPerAddress;
         uint96 numTokensForLP;
         uint96 numTokensForDistribution;
         uint96 numTokensForRecipient;
-        bytes32 merkleRoot;
         address recipient;
         uint16 finalizationFeeBps;
         uint16 withdrawalFeeBps;
