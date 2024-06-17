@@ -10,20 +10,20 @@ import { Vm } from "forge-std/src/Test.sol";
 
 contract PartyERC20Test is UseImmutableCreate2Factory {
     PartyERC20 public token;
-    PartyTokenAdminERC721 public ownershipNft;
+    PartyTokenAdminERC721 public adminNFTId;
 
     event MetadataSet(string description);
 
     function setUp() public override {
         super.setUp();
-        ownershipNft = new PartyTokenAdminERC721("Ownership NFT", "ON", address(this));
+        adminNFTId = new PartyTokenAdminERC721("Admin NFT", "ON", address(this));
         token = PartyERC20(
-            factory.safeCreate2(bytes32(0), abi.encodePacked(type(PartyERC20).creationCode, abi.encode(ownershipNft)))
+            factory.safeCreate2(bytes32(0), abi.encodePacked(type(PartyERC20).creationCode, abi.encode(adminNFTId)))
         );
         token.initialize("PartyERC20", "PARTY", "MyDescription", 100_000, address(this), address(this), 1);
 
-        ownershipNft.setIsMinter(address(this), true);
-        ownershipNft.mint("Ownership NFT", "MyImage", address(this));
+        adminNFTId.setIsMinter(address(this), true);
+        adminNFTId.mint("Admin NFT", "MyImage", address(this));
     }
 
     function test_cannotReinit() public {
@@ -60,7 +60,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
     function test_getTokenImage_fetchFromToken() external {
         assertEq(token.getTokenImage(), "MyImage");
 
-        ownershipNft.setTokenImage(1, "NewImage");
+        adminNFTId.setTokenImage(1, "NewImage");
 
         assertEq(token.getTokenImage(), "NewImage");
     }
@@ -85,7 +85,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
     }
 
     function test_setMetadata_onlyNFTHolder() external {
-        ownershipNft.transferFrom(address(this), address(2), 1);
+        adminNFTId.transferFrom(address(this), address(2), 1);
 
         vm.expectRevert(PartyERC20.Unauthorized.selector);
         token.setMetadata("NewDescription");

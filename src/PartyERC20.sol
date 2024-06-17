@@ -27,18 +27,18 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
     /**
      * @notice The ID of the specific launch admin NFT that owns this collection.
      */
-    uint256 public ownershipNftId;
+    uint256 public adminNftId;
 
     /**
      * @notice The NFT collector of launch admin NFTs.
      */
-    PartyTokenAdminERC721 public immutable OWNERSHIP_NFT;
+    PartyTokenAdminERC721 public immutable ADMIN_NFT;
 
     /**
-     * @param ownershipNft Ownership NFT contract
+     * @param adminNft Admin NFT contract
      */
-    constructor(PartyTokenAdminERC721 ownershipNft) {
-        OWNERSHIP_NFT = ownershipNft;
+    constructor(PartyTokenAdminERC721 adminNft) {
+        ADMIN_NFT = adminNft;
     }
 
     /**
@@ -49,7 +49,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
      * @param totalSupply Total supply of the token
      * @param receiver Where the entire supply is initially sent
      * @param owner Initial owner of the contract
-     * @param ownershipNFTIds_ Ownership NFT ID
+     * @param adminNFTIds_ Admin NFT ID
      */
     function initialize(
         string memory name,
@@ -58,7 +58,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
         uint256 totalSupply,
         address receiver,
         address owner,
-        uint256 ownershipNFTIds_
+        uint256 adminNFTIds_
     )
         external
         initializer
@@ -70,7 +70,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
         _mint(receiver, totalSupply);
         emit MetadataSet(description);
 
-        ownershipNftId = ownershipNFTIds_;
+        adminNftId = adminNFTIds_;
     }
 
     /**
@@ -121,11 +121,11 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
 
     /**
      * @notice Emit an event setting the metadata for the token.
-     * @dev Only callable by the owner of the ownership NFT.
+     * @dev Only callable by the owner of the admin NFT.
      * @param description  Plain text description of the token.
      */
     function setMetadata(string memory description) external {
-        if (msg.sender != OWNERSHIP_NFT.ownerOf(ownershipNftId)) {
+        if (msg.sender != ADMIN_NFT.ownerOf(adminNftId)) {
             revert Unauthorized();
         }
         emit MetadataSet(description);
@@ -135,7 +135,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
      * @notice Returns the image for the token.
      */
     function getTokenImage() external view returns (string memory) {
-        (, string memory image,) = OWNERSHIP_NFT.tokenMetadatas(ownershipNftId);
+        (, string memory image,) = ADMIN_NFT.tokenMetadatas(adminNftId);
         return image;
     }
 
