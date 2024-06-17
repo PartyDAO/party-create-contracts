@@ -38,12 +38,11 @@ contract PartyTokenLauncherForkTest is Test {
     function testIntegration_launchLifecycle() public {
         address creator = vm.createWallet("Creator").addr;
         address recipient = vm.createWallet("Recipient").addr;
-        PartyLPLocker.AdditionalFeeRecipient[] memory additionalLPFeeRecipients =
-            new PartyLPLocker.AdditionalFeeRecipient[](1);
-        additionalLPFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
+        PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
+            new PartyTokenLauncher.LockerFeeRecipient[](1);
+        lockerFeeRecipients[0] = PartyTokenLauncher.LockerFeeRecipient({
             recipient: vm.createWallet("AdditionalLPFeeRecipient").addr,
-            percentageBps: 1e4,
-            feeType: PartyLPLocker.FeeType.Token0
+            bps: 1e4
         });
         address contributor1 = vm.createWallet("Contributor1").addr;
         address contributor2 = vm.createWallet("Contributor2").addr;
@@ -71,7 +70,7 @@ contract PartyTokenLauncherForkTest is Test {
             recipient: recipient,
             finalizationFeeBps: 200, // 2%
             withdrawalFeeBps: 100, // 1%
-            additionalLPFeeRecipients: additionalLPFeeRecipients
+            lockerFeeRecipients: lockerFeeRecipients
         });
 
         vm.prank(creator);
