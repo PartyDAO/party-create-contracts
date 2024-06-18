@@ -1,7 +1,3 @@
-Here is the content from the .docx file converted to Markdown:
-
----
-
 # party-token-protocol Audit Docs
 
 ## Summary
