@@ -1,205 +1,116 @@
-# Foundry Template [![Open in Gitpod][gitpod-badge]][gitpod] [![Github Actions][gha-badge]][gha] [![Foundry][foundry-badge]][foundry] [![License: MIT][license-badge]][license]
+Here is the content from the .docx file converted to Markdown:
 
-[gitpod]: https://gitpod.io/#https://github.com/PartyDAO/party-swap-protocol
-[gitpod-badge]: https://img.shields.io/badge/Gitpod-Open%20in%20Gitpod-FFB45B?logo=gitpod
-[gha]: https://github.com/PartyDAO/party-swap-protocol/actions
-[gha-badge]: https://github.com/PartyDAO/party-swap-protocol/actions/workflows/ci.yml/badge.svg
-[foundry]: https://getfoundry.sh/
-[foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
-[license]: https://opensource.org/licenses/MIT
-[license-badge]: https://img.shields.io/badge/License-MIT-blue.svg
+---
 
-A Foundry-based template for developing Solidity smart contracts, with sensible defaults.
+# party-token-protocol Audit Docs
 
-## What's Inside
+## Summary
 
-- [Forge](https://github.com/foundry-rs/foundry/blob/master/forge): compile, test, fuzz, format, and deploy smart
-  contracts
-- [Forge Std](https://github.com/foundry-rs/forge-std): collection of helpful contracts and utilities for testing
-- [Prettier](https://github.com/prettier/prettier): code formatter for non-Solidity files
-- [Solhint](https://github.com/protofire/solhint): linter for Solidity code
+This is a new protocol that helps users create new ERC-20 tokens and crowdfund liquidity for a launch. It consists of the following contracts:
 
-## Getting Started
+- PartyTokenLauncher
+- PartyERC20
+- PartyLPLocker
+- PartyTokenAdminERC721
 
-Click the [`Use this template`](https://github.com/PaulRBerg/foundry-template/generate) button at the top of the page to
-create a new repository with this repo as the initial state.
+At a high level, this is the user behavior. The rest of the documentation will go into further details about each piece.
 
-Or, if you prefer to install the template manually:
+### Create
 
-```sh
-$ mkdir my-project
-$ cd my-project
-$ forge init --template PaulRBerg/foundry-template
-$ bun install # install Solhint, Prettier, and other Node.js deps
-```
+Someone starts a new ERC-20 token and a crowdfund with a specific amount of ETH as a goal.
 
-If this is your first time with Foundry, check out the
-[installation](https://github.com/foundry-rs/foundry#installation) instructions.
+### Crowdfund
 
-## Features
+People can join a crowdfund by contributing ETH and receiving tokens. They can also leave at any time for a refund.
 
-This template builds upon the frameworks and libraries mentioned above, so please consult their respective documentation
-for details about their specific features.
+### Finalize
 
-For example, if you're interested in exploring Foundry in more detail, you should look at the
-[Foundry Book](https://book.getfoundry.sh/). In particular, you may be interested in reading the
-[Writing Tests](https://book.getfoundry.sh/forge/writing-tests.html) tutorial.
+If the crowdfund hits its goal, all ETH is used in a new UniV3 LP position which is locked forever. Tokens become transferable at this time.
 
-### Sensible Defaults
+### LP Fees
 
-This template comes with a set of sensible default configurations for you to use. These defaults can be found in the
-following files:
+The owner of a special `PartyTokenAdminERC721` can claim the LP fees from the locked position.
 
-```text
-├── .editorconfig
-├── .gitignore
-├── .prettierignore
-├── .prettierrc.yml
-├── .solhint.json
-├── foundry.toml
-└── remappings.txt
-```
+## PartyTokenLauncher
 
-### VSCode Integration
+The `PartyTokenLauncher` contract is the main contract. It provides a clear structured way to create tokens, distribute supply fairly, and establish liquidity pools on Uniswap V3. By incorporating crowdfunding mechanisms, it allows token creators to raise the necessary funds while offering contributors a fair share of the tokens. In our first release, we will do a simple fixed-price crowdfund that transitions into a symmetric full-range Uniswap V3 position where the percentage of tokens allocated to the LP and to crowdfund contributors is equal.
 
-This template is IDE agnostic, but for the best user experience, you may want to use it in VSCode alongside Nomic
-Foundation's [Solidity extension](https://marketplace.visualstudio.com/items?itemName=NomicFoundation.hardhat-solidity).
+### Creation
 
-For guidance on how to integrate a Foundry project in VSCode, please refer to this
-[guide](https://book.getfoundry.sh/config/vscode).
+- Someone starts a new ERC-20 token and a crowdfund with a specific amount of ETH as a goal.
+- The creator receives a `PartyTokenAdminERC721` for their new token, allowing them to change metadata or claim LP fees later if the crowdfund succeeds.
+- The creator sets 3 amounts of tokens:
+  - Amount for reserve (given to a specific address)
+  - Amount for crowdfunders (given to contributors)
+  - Amount for LP (paired with ETH at the end of the crowdfund)
+- All fee amounts are set during creation. Our frontend UI will pass in the parameters for the 3 types of fees: withdrawal fees, success fee, and LP fee split.
+- The creator can also choose to add a contribution limit (max-per-wallet) or an allow list (via merkle root) to limit contribution activity.
 
-### GitHub Actions
+### Crowdfund
 
-This template comes with GitHub Actions pre-configured. Your contracts will be linted and tested on every push and pull
-request made to the `main` branch.
+- Crowdfunds have no time duration. They last as long as they need until they hit their goal.
 
-You can edit the CI script in [.github/workflows/ci.yml](./.github/workflows/ci.yml).
+#### Joining
 
-## Installing Dependencies
+- People can contribute ETH to the crowdfund, bringing it closer to its goal. When they contribute, they receive ERC-20 tokens in proportion to the amount of ETH they put in.
+- The ERC-20 tokens are non-transferable during the crowdfund.
 
-Foundry typically uses git submodules to manage dependencies, but this template uses Node.js packages because
-[submodules don't scale](https://twitter.com/PaulRBerg/status/1736695487057531328).
+#### Leaving
 
-This is how to install dependencies:
+- At any time during the crowdfund, users can leave for a refund. They do this by burning their tokens and getting back their ETH.
+- PartyDAO charges a fee during withdrawals. It is a percentage of the ETH.
 
-1. Install the dependency using your preferred package manager, e.g. `bun install dependency-name`
-   - Use this syntax to install from GitHub: `bun install github:username/repo-name`
-2. Add a remapping for the dependency in [remappings.txt](./remappings.txt), e.g.
-   `dependency-name=node_modules/dependency-name`
+### Finalization
 
-Note that OpenZeppelin Contracts is pre-installed, so you can follow that as an example.
+When a crowdfund successfully reaches its ETH goal, it is finalized and several things happen in the same transaction:
 
-## Writing Tests
+- When the crowdfund reaches its goal, all of the ETH raised in the crowdfund is paired with a specified amount of tokens in a new UniV3 LP position. This is a full-range UniV3 LP position. A percentage finalization fee is taken on the total amount of ETH raised before liquidity is added.
+- The LP position is locked forever in our PartyLPLocker.
+- In the same transaction, any reserve tokens are sent to the designated recipient.
+- In the same transaction, the tokens become transferable.
 
-To write a new test contract, you start by importing `Test` from `forge-std`, and then you inherit it in your test
-contract. Forge Std comes with a pre-instantiated [cheatcodes](https://book.getfoundry.sh/cheatcodes/) environment
-accessible via the `vm` property. If you would like to view the logs in the terminal output, you can add the `-vvv` flag
-and use [console.log](https://book.getfoundry.sh/faq?highlight=console.log#how-do-i-use-consolelog).
+## PartyLPLocker
 
-This template comes with an example test contract [Foo.t.sol](./test/Foo.t.sol)
+The `PartyLPLocker` contract locks Uniswap V3 LP NFTs and manages fee collection for locked positions.
 
-## Usage
+### Fee collection
 
-This is a list of the most frequently needed commands.
+- The owner of the `PartyTokenAdminERC721` can claim fees from the locked LP position.
+- The owner of the Admin NFT receives 100% of the fees earned in their ERC-20 token.
+- The owner of the Admin NFT splits the ETH fees with PartyDAO based on a percentage set when the crowdfund was created.
 
-### Build
+### UNCX
 
-Build the contracts:
+- The PartyLPLocker uses UNCX for liquidity lockers. We are doing this so that services like DEX Screener will feature a locked liquidity indicator for all tokens created using our platform.
+- UNCX has three tiers, and we use the LVP fee option for 0.3% liquidity and 3.5% collect fee. We preferred to go with a higher fee upon locking with UNCX but less on collected fees.
+- For Base specifically, UNCX takes a flat fee in ETH upon locking with their Uniswap V3 locker. Currently, this is 0.03 ETH.
 
-```sh
-$ forge build
-```
+## PartyERC20
 
-### Clean
+The `PartyERC20` is a custom ERC20 token used by the `PartyTokenLauncher` for launches.
 
-Delete the build artifacts and cache directories:
+- Inherits `ERC20PermitUpgradeable` and `ERC20VotesUpgradeable`.
+- It is meant to be created using ERC-1167 minimal proxies by the `PartyTokenLauncher`.
+- Is ownable. In practice, this will always be the `PartyTokenLauncher` until finalization, after which ownership will be revoked.
+- The owner of the launch’s creator NFT from `PartyTokenAdminERC721` can set metadata for the token. Besides this, they have no other control over the token.
 
-```sh
-$ forge clean
-```
+## PartyTokenAdminERC721
 
-### Compile
+The `PartyTokenAdminERC721` contract is an ERC721 token representing the launch creator with metadata management and minter permissions.
 
-Compile the contracts:
+- The NFT is a big protocol-wide collection.
+- The NFT has an attribute that represents whether the crowdfund was successful or not.
+- It can have multiple minters, but for now, the only minter is `PartyTokenLauncher`.
 
-```sh
-$ forge build
-```
+## Defaults & Clarifications
 
-### Coverage
+Certain inputs in our protocol will be exposed to users who are creating ERC20 tokens. Other input parameters, however, will be set by our frontend across all ERC20 tokens.
 
-Get a test coverage report:
+### Defaults
 
-```sh
-$ forge coverage
-```
-
-### Deploy
-
-Deploy to Anvil:
-
-```sh
-$ forge script script/Deploy.s.sol --broadcast --fork-url http://localhost:8545
-```
-
-For this script to work, you need to have a `MNEMONIC` environment variable set to a valid
-[BIP39 mnemonic](https://iancoleman.io/bip39/).
-
-For instructions on how to deploy to a testnet or mainnet, check out the
-[Solidity Scripting](https://book.getfoundry.sh/tutorials/solidity-scripting.html) tutorial.
-
-### Format
-
-Format the contracts:
-
-```sh
-$ forge fmt
-```
-
-### Gas Usage
-
-Get a gas report:
-
-```sh
-$ forge test --gas-report
-```
-
-### Lint
-
-Lint the contracts:
-
-```sh
-$ bun run lint
-```
-
-### Test
-
-Run the tests:
-
-```sh
-$ forge test
-```
-
-Generate test coverage and output result to the terminal:
-
-```sh
-$ bun run test:coverage
-```
-
-Generate test coverage with lcov report (you'll have to open the `./coverage/index.html` file in your browser, to do so
-simply copy paste the path):
-
-```sh
-$ bun run test:coverage:report
-```
-
-## Related Efforts
-
-- [abigger87/femplate](https://github.com/abigger87/femplate)
-- [cleanunicorn/ethereum-smartcontract-template](https://github.com/cleanunicorn/ethereum-smartcontract-template)
-- [foundry-rs/forge-template](https://github.com/foundry-rs/forge-template)
-- [FrankieIsLost/forge-template](https://github.com/FrankieIsLost/forge-template)
-
-## License
-
-This project is licensed under MIT.
+- Every token will have 1B supply.
+- Users can only set the reserve percentage of their token. We will default the amount of tokens for contributors and the amount for the LP position to be equal.
+- All fee amounts will be set by our frontend and will not be adjustable by users:
+  - finalizationFeeBps: 100
+  - withdrawalFeeBps: 100
+  - lockerFeeRecipients: `[partyDaoMultisigAddress 5000]`
