@@ -189,6 +189,6 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_VERSION() external view {
-        assertEq(locker.VERSION(), "0.1.0");
+        assertEq(locker.VERSION(), "0.2.0");
     }
 }

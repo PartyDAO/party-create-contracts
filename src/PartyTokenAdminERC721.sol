@@ -138,6 +138,6 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
      * change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.4.0";
+        return "0.5.0";
     }
 }
