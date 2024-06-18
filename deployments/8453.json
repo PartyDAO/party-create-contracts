@@ -1,0 +1,39 @@
+{
+  "contracts": {
+    "PartyTokenAdminERC721": {
+      "deploys": [],
+      "constructorArgs": ["nft_name", "nft_symbol", "partyDao"]
+    },
+    "PartyERC20": {
+      "deploys": [],
+      "constructorArgs": ["PartyTokenAdminERC721"]
+    },
+    "PartyLPLocker": {
+      "deploys": [],
+      "constructorArgs": ["positionManager", "PartyTokenAdminERC721", "uncx"]
+    },
+    "PartyTokenLauncher": {
+      "deploys": [],
+      "constructorArgs": [
+        "partyDao",
+        "PartyTokenAdminERC721",
+        "PartyERC20",
+        "positionManager",
+        "uniswapFactory",
+        "weth",
+        "poolFee",
+        "PartyLPLocker"
+      ]
+    }
+  },
+  "constants": {
+    "partyDao": "0x0e63D6f414b40BaFCa676810ef1aBf05ECc8E459",
+    "nft_name": "PartyTokenAdminERC721",
+    "nft_symbol": "PSC721",
+    "positionManager": "0x27F971cb582BF9E50F397e4d29a5C7A34f11faA2",
+    "uniswapFactory": "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1",
+    "weth": "0x4200000000000000000000000000000000000006",
+    "poolFee": 100,
+    "uncx": "0x231278eDd38B00B07fBd52120CEf685B9BaEBCC1"
+  }
+}
