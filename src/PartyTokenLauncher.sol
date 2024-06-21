@@ -55,6 +55,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     error NoLockerFeeRecipients();
     error TotalSupplyMismatch();
     error TotalSupplyExceedsLimit();
+    error EthTransferFailed();
     error InvalidMerkleProof();
     error InvalidBps();
     error ContributionZero();
@@ -526,10 +527,11 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         launches[launchId].totalContributions -= ethContributed;
 
         // Transfer withdrawal fee to PartyDAO
-        payable(owner()).call{ value: withdrawalFee, gas: 1e5 }("");
+        owner().call{ value: withdrawalFee, gas: 1e5 }("");
 
         // Transfer ETH to sender
-        payable(msg.sender).call{ value: ethReceived, gas: 1e5 }("");
+        (bool success,) = msg.sender.call{ value: ethReceived, gas: 1e5 }("");
+        if (!success) revert EthTransferFailed();
 
         emit Withdraw(launchId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
     }
