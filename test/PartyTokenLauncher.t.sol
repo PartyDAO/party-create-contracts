@@ -36,7 +36,7 @@ contract PartyTokenLauncherTest is Test {
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PTA721", address(this));
-        positionLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
+        positionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, uncx);
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
             partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, weth, poolFee, positionLocker
@@ -237,7 +237,7 @@ contract PartyTokenLauncherTest is Test {
     }
 
     function test_setPositionLocker_works() public {
-        PartyLPLocker newPositionLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
+        PartyLPLocker newPositionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, uncx);
         vm.prank(partyDAO);
         launch.setPositionLocker(newPositionLocker);
 
