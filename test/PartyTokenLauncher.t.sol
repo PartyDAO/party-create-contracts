@@ -247,4 +247,39 @@ contract PartyTokenLauncherTest is Test {
     function test_VERSION_works() public view {
         assertEq(launch.VERSION(), "0.5.0");
     }
+
+    function test_createLaunch_invalidRecipient() public returns (uint32 launchId) {
+        address creator = vm.createWallet("Creator").addr;
+        address recipient = vm.createWallet("Recipient").addr;
+        vm.deal(creator, 1 ether);
+
+        PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
+            new PartyTokenLauncher.LockerFeeRecipient[](1);
+        lockerFeeRecipients[0] = PartyTokenLauncher.LockerFeeRecipient({ recipient: address(0), bps: 1e4 });
+
+        PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
+            name: "NewToken",
+            symbol: "NT",
+            image: "image_url",
+            description: "New Token Description",
+            totalSupply: 1_000_000 ether
+        });
+
+        PartyTokenLauncher.LaunchArgs memory launchArgs = PartyTokenLauncher.LaunchArgs({
+            numTokensForLP: 500_000 ether,
+            numTokensForDistribution: 300_000 ether,
+            numTokensForRecipient: 200_000 ether,
+            targetContribution: 10 ether,
+            maxContributionPerAddress: 8 ether,
+            merkleRoot: bytes32(0),
+            recipient: recipient,
+            finalizationFeeBps: finalizationFeeBps,
+            withdrawalFeeBps: withdrawalFeeBps,
+            lockerFeeRecipients: lockerFeeRecipients
+        });
+
+        vm.prank(creator);
+        vm.expectRevert(PartyTokenLauncher.InvalidRecipient.selector);
+        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+    }
 }
