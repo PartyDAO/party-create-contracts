@@ -242,6 +242,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         launch.finalizationFeeBps = launchArgs.finalizationFeeBps;
         launch.withdrawalFeeBps = launchArgs.withdrawalFeeBps;
         launch.lpInfo.partyTokenAdminId = tokenAdminId;
+
+        uint16 totalAdditionalFeeRecipientsBps = 0;
         for (uint256 i = 0; i < launchArgs.lockerFeeRecipients.length; i++) {
             launch.lpInfo.additionalFeeRecipients.push(
                 PartyLPLocker.AdditionalFeeRecipient({
@@ -250,7 +252,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
                     feeType: WETH < address(token) ? PartyLPLocker.FeeType.Token0 : PartyLPLocker.FeeType.Token1
                 })
             );
+            totalAdditionalFeeRecipientsBps += launchArgs.lockerFeeRecipients[i].bps;
         }
+        if (totalAdditionalFeeRecipientsBps > 10_000) revert InvalidBps();
     }
 
     function getLaunchLifecycle(uint32 launchId) public view returns (LaunchLifecycle) {
