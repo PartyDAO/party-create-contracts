@@ -46,7 +46,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     event Finalized(
         uint32 indexed launchId, IERC20 indexed token, uint256 liquidityPoolTokenId, uint96 ethAmountForPool
     );
-    event PositionLockerSet(address oldPositionLocker, address newPositionLocker);
     event RecipientTransfer(uint32 indexed launchId, IERC20 indexed token, address indexed recipient, uint96 numTokens);
 
     error LaunchInvalid();
@@ -117,9 +116,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     int24 public immutable MIN_TICK;
     int24 public immutable MAX_TICK;
     address public immutable WETH;
+    ILocker public POSITION_LOCKER;
 
     uint32 public numOfLaunches;
-    ILocker public positionLocker;
 
     /**
      * @notice Get data about a launch by its ID.
@@ -135,7 +134,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         IUniswapV3Factory uniswapFactory,
         address weth,
         uint24 poolFee,
-        ILocker positionLocker_
+        ILocker positionLocker
     )
         Ownable(partyDAO)
     {
@@ -145,12 +144,11 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         UNISWAP_FACTORY = uniswapFactory;
         WETH = weth;
         POOL_FEE = poolFee;
+        POSITION_LOCKER = positionLocker;
 
         int24 tickSpacing = uniswapFactory.feeAmountTickSpacing(poolFee);
         MIN_TICK = (-887_272 / tickSpacing) * tickSpacing;
         MAX_TICK = (887_272 / tickSpacing) * tickSpacing;
-
-        positionLocker = positionLocker_;
     }
 
     /**
@@ -170,7 +168,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         if (launchArgs.finalizationFeeBps > 1e4 || launchArgs.withdrawalFeeBps > 1e4) {
             revert InvalidBps();
         }
-        uint96 flatLockFee = positionLocker.getFlatLockFee();
+        uint96 flatLockFee = POSITION_LOCKER.getFlatLockFee();
         uint96 finalizationFee = (launchArgs.targetContribution * launchArgs.finalizationFeeBps) / 1e4;
         if (launchArgs.targetContribution - finalizationFee <= flatLockFee) revert TargetContributionTooLow();
         if (
@@ -412,7 +410,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
     function _finalize(uint32 launchId, Launch memory launch) private {
         uint96 finalizationFee = (launch.targetContribution * launch.finalizationFeeBps) / 1e4;
-        uint96 flatLockFee = positionLocker.getFlatLockFee();
+        uint96 flatLockFee = POSITION_LOCKER.getFlatLockFee();
         uint96 amountForPool = launch.targetContribution - finalizationFee - flatLockFee;
 
         (address token0, address token1) =
@@ -460,12 +458,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         // Transfer flat fee to locker contract
         if (flatLockFee > 0) {
-            payable(address(positionLocker)).call{ value: flatLockFee, gas: 1e5 }("");
+            payable(address(POSITION_LOCKER)).call{ value: flatLockFee, gas: 1e5 }("");
         }
 
         // Transfer LP to fee locker contract
         POSTION_MANAGER.safeTransferFrom(
-            address(this), address(positionLocker), tokenId, abi.encode(launch.lpInfo, flatLockFee)
+            address(this), address(POSITION_LOCKER), tokenId, abi.encode(launch.lpInfo, flatLockFee)
         );
 
         emit Finalized(launchId, launch.token, tokenId, amountForPool);
@@ -518,11 +516,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         payable(msg.sender).call{ value: ethReceived, gas: 1e5 }("");
 
         emit Withdraw(launchId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
-    }
-
-    function setPositionLocker(ILocker positionLocker_) external onlyOwner {
-        emit PositionLockerSet(address(positionLocker), address(positionLocker_));
-        positionLocker = positionLocker_;
     }
 
     /// @notice Handle ERC721 tokens received.

@@ -51,7 +51,7 @@ contract PartyTokenLauncherTest is Test {
         assertEq(address(launch.UNISWAP_FACTORY()), address(uniswapFactory));
         assertEq(address(launch.WETH()), weth);
         assertEq(launch.POOL_FEE(), poolFee);
-        assertEq(address(launch.positionLocker()), address(positionLocker));
+        assertEq(address(launch.POSITION_LOCKER()), address(positionLocker));
     }
 
     function test_createLaunch_works() public returns (uint32 launchId) {
@@ -234,14 +234,6 @@ contract PartyTokenLauncherTest is Test {
         assertEq(contributor2.balance, 0);
         assertEq(token.balanceOf(address(launch)), 0);
         assertEq(address(launch).balance, 0);
-    }
-
-    function test_setPositionLocker_works() public {
-        PartyLPLocker newPositionLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
-        vm.prank(partyDAO);
-        launch.setPositionLocker(newPositionLocker);
-
-        assertEq(address(launch.positionLocker()), address(newPositionLocker));
     }
 
     function test_VERSION_works() public view {
