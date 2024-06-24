@@ -73,7 +73,7 @@ contract PartyTokenLauncherForkTest is Test {
         });
 
         vm.prank(creator);
-        uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
 
         PartyERC20 token;
         uint96 totalContributions;

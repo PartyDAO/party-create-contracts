@@ -88,7 +88,7 @@ contract PartyTokenLauncherTest is Test {
         });
 
         vm.prank(creator);
-        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "I am the creator");
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Active);
 
@@ -138,7 +138,7 @@ contract PartyTokenLauncherTest is Test {
         });
 
         vm.prank(creator);
-        launchId = launch.createLaunch{ value: 10 ether }(erc20Args, launchArgs);
+        launchId = launch.createLaunch{ value: 10 ether }(erc20Args, launchArgs, "");
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
     }
