@@ -66,6 +66,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
 
     function test_onERC721Received_lockLp(address additionalFeeRecipient) external {
         vm.assume(additionalFeeRecipient != address(this));
+        vm.assume(additionalFeeRecipient != address(0));
 
         uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
 
