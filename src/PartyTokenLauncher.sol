@@ -62,6 +62,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     );
     error ContributionExceedsTarget(uint96 amountOverTarget, uint96 targetContribution);
     error InvalidLifecycleState(LaunchLifecycle actual, LaunchLifecycle expected);
+    error InvalidFee();
 
     enum LaunchLifecycle {
         Active,
@@ -167,8 +168,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         payable
         returns (uint32 id)
     {
-        if (launchArgs.finalizationFeeBps > 1e4 || launchArgs.withdrawalFeeBps > 1e4) {
-            revert InvalidBps();
+        if (launchArgs.finalizationFeeBps > 250 || launchArgs.withdrawalFeeBps > 250) {
+            revert InvalidFee();
         }
         uint96 flatLockFee = positionLocker.getFlatLockFee();
         uint96 finalizationFee = (launchArgs.targetContribution * launchArgs.finalizationFeeBps) / 1e4;
