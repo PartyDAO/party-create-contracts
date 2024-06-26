@@ -317,7 +317,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         }
         if (amount == 0) revert ContributionZero();
         uint96 ethContributed = _convertTokensReceivedToETHContributed(
-            uint96(launch.token.balanceOf(msg.sender)), launch.targetContribution, launch.numTokensForDistribution
+            uint96(launch.token.balanceOf(contributor)), launch.targetContribution, launch.numTokensForDistribution
         );
         if (ethContributed + amount > launch.maxContributionPerAddress) {
             revert ContributionsExceedsMaxPerAddress(amount, ethContributed, launch.maxContributionPerAddress);
