@@ -29,7 +29,9 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         adminToken = new PartyTokenAdminERC721("Party Admin", "PA", address(this));
         adminToken.setIsMinter(address(this), true);
         uncx = new MockUNCX();
-        locker = new PartyLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
+        locker = new PartyLPLocker(
+            address(this), INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx
+        );
         token = PartyERC20(Clones.clone(address(new PartyERC20(adminToken))));
         token.initialize("Party Token", "PT", "description", 1 ether, address(this), address(this), 0);
 
@@ -58,7 +60,9 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_constructor() external {
-        locker = new PartyLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
+        locker = new PartyLPLocker(
+            address(this), INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx
+        );
 
         assertEq(address(locker.POSITION_MANAGER()), uniswapV3Deployment.POSITION_MANAGER);
         assertEq(address(locker.PARTY_TOKEN_ADMIN()), address(adminToken));
@@ -214,5 +218,17 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
 
     function test_VERSION() external view {
         assertEq(locker.VERSION(), "0.1.0");
+    }
+
+    function test_setUncxCountryCode_setsStorage() external {
+        assertEq(locker.uncxCountryCode(), 0);
+        locker.setUncxCountryCode(1);
+        assertEq(locker.uncxCountryCode(), 1);
+    }
+
+    function test_setUncxFeeName_setsStorage() external {
+        assertEq(locker.uncxFeeName(), "LVP");
+        locker.setUncxFeeName("test");
+        assertEq(locker.uncxFeeName(), "test");
     }
 }

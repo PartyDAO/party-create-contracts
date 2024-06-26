@@ -26,7 +26,7 @@ contract PartyTokenLauncherForkTest is Test {
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         uncx = IUNCX(0x231278eDd38B00B07fBd52120CEf685B9BaEBCC1);
-        lpLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
+        lpLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, uncx);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
