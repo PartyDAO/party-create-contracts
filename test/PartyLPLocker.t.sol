@@ -198,7 +198,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         uint256 beforeBalance = address(this).balance;
         assertEq(address(locker).balance, 1 ether);
 
-        locker.withdrawEth(address(this));
+        locker.sweep(address(this));
 
         assertEq(address(locker).balance, 0);
         assertEq(address(this).balance, beforeBalance + 1 ether);
@@ -206,7 +206,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
 
     function test_withdrawEth_null() external {
         vm.expectRevert(PartyLPLocker.InvalidRecipient.selector);
-        locker.withdrawEth(address(0));
+        locker.sweep(address(0));
     }
 
     function test_VERSION() external view {
