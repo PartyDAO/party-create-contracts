@@ -49,6 +49,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     event PositionLockerSet(address oldPositionLocker, address newPositionLocker);
     event RecipientTransfer(uint32 indexed launchId, IERC20 indexed token, address indexed recipient, uint96 numTokens);
 
+    error InvalidUniswapPoolFee();
     error LaunchInvalid();
     error InvalidRecipient();
     error TargetContributionTooLow();
@@ -149,6 +150,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         POOL_FEE = poolFee;
 
         int24 tickSpacing = uniswapFactory.feeAmountTickSpacing(poolFee);
+        if (tickSpacing == 0) revert InvalidUniswapPoolFee();
+
         MIN_TICK = (-887_272 / tickSpacing) * tickSpacing;
         MAX_TICK = (887_272 / tickSpacing) * tickSpacing;
 

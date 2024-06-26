@@ -5,11 +5,12 @@ import "forge-std/src/Test.sol";
 import { WETH9 } from "./mock/WETH.t.sol";
 import { MockUniswapV3Factory } from "./mock/MockUniswapV3Factory.t.sol";
 import { MockUniswapNonfungiblePositionManager } from "./mock/MockUniswapNonfungiblePositionManager.t.sol";
+import { MockUniswapV3Deployer } from "./mock/MockUniswapV3Deployer.t.sol";
 import { MockUNCX, IUNCX } from "./mock/MockUNCX.t.sol";
 
 import "../src/PartyTokenLauncher.sol";
 
-contract PartyTokenLauncherTest is Test {
+contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
     PartyTokenLauncher launch;
     PartyERC20 partyERC20Logic;
     PartyTokenAdminERC721 creatorNFT;
@@ -26,11 +27,11 @@ contract PartyTokenLauncherTest is Test {
     uint16 withdrawalFeeBps = 200; // 2%
 
     function setUp() public {
-        weth = payable(address(new WETH9()));
-        uniswapFactory = IUniswapV3Factory(address(new MockUniswapV3Factory()));
-        positionManager = INonfungiblePositionManager(
-            address(new MockUniswapNonfungiblePositionManager(address(weth), address(uniswapFactory)))
-        );
+        MockUniswapV3Deployer.UniswapV3Deployment memory deploy = _deployUniswapV3();
+
+        weth = deploy.WETH;
+        uniswapFactory = IUniswapV3Factory(deploy.FACTORY);
+        positionManager = INonfungiblePositionManager(deploy.POSITION_MANAGER);
         uncx = new MockUNCX();
         poolFee = 3000;
 
@@ -331,6 +332,20 @@ contract PartyTokenLauncherTest is Test {
         launch.setPositionLocker(newPositionLocker);
 
         assertEq(address(launch.positionLocker()), address(newPositionLocker));
+    }
+
+    function test_constructor_invalidUniswapPoolFee() external {
+        vm.expectRevert(PartyTokenLauncher.InvalidUniswapPoolFee.selector);
+        launch = new PartyTokenLauncher(
+            partyDAO,
+            creatorNFT,
+            partyERC20Logic,
+            positionManager,
+            uniswapFactory,
+            weth,
+            type(uint24).max,
+            positionLocker
+        );
     }
 
     function test_VERSION_works() public view {
