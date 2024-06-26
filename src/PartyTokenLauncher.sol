@@ -284,12 +284,14 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     /**
      * @notice Contribute ETH to a launch and receive tokens.
      * @param launchId ID of the launch.
+     * @param tokenAddress Address of the token expected to be received.
      * @param comment Comment for the contribution.
      * @param merkleProof Merkle proof for the contribution.
      * @return tokensReceived Number of tokens received for the contribution.
      */
     function contribute(
         uint32 launchId,
+        address tokenAddress,
         string calldata comment,
         bytes32[] calldata merkleProof
     )
@@ -298,6 +300,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         returns (uint96 tokensReceived)
     {
         Launch memory launch = launches[launchId];
+
+        if (address(launch.token) != tokenAddress) revert LaunchInvalid();
 
         // Verify merkle proof if merkle root is set
         if (launch.merkleRoot != bytes32(0)) {

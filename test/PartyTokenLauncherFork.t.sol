@@ -98,7 +98,7 @@ contract PartyTokenLauncherForkTest is Test {
         // Step 2: Contribute to the launch
         vm.deal(contributor1, 5 ether);
         vm.prank(contributor1);
-        launch.contribute{ value: 5 ether }(launchId, "Contribution", new bytes32[](0));
+        launch.contribute{ value: 5 ether }(launchId, address(token), "Contribution", new bytes32[](0));
 
         expectedTotalContributions += 5 ether;
         {
@@ -131,7 +131,9 @@ contract PartyTokenLauncherForkTest is Test {
         uint96 remainingContribution = launchArgs.targetContribution - expectedTotalContributions;
         vm.deal(contributor2, remainingContribution);
         vm.prank(contributor2);
-        launch.contribute{ value: remainingContribution }(launchId, "Final Contribution", new bytes32[](0));
+        launch.contribute{ value: remainingContribution }(
+            launchId, address(token), "Final Contribution", new bytes32[](0)
+        );
 
         expectedTotalContributions += remainingContribution;
         {
