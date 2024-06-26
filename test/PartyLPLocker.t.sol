@@ -10,6 +10,7 @@ import { PartyLPLocker } from "src/PartyLPLocker.sol";
 import { MockUNCX } from "./mock/MockUNCX.t.sol";
 import { PartyERC20 } from "src/PartyERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     MockUniswapV3Deployer.UniswapV3Deployment uniswapV3Deployment;
@@ -29,7 +30,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         adminToken.setIsMinter(address(this), true);
         uncx = new MockUNCX();
         locker = new PartyLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
-        token = new PartyERC20(adminToken);
+        token = PartyERC20(Clones.clone(address(new PartyERC20(adminToken))));
         token.initialize("Party Token", "PT", "description", 1 ether, address(this), address(this), 0);
 
         token.approve(uniswapV3Deployment.POSITION_MANAGER, 0.1 ether);

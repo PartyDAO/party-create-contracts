@@ -39,6 +39,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
      */
     constructor(PartyTokenAdminERC721 adminNft) {
         ADMIN_NFT = adminNft;
+        _disableInitializers();
     }
 
     /**
