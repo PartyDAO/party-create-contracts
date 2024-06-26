@@ -158,11 +158,13 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
      * @notice Create a new token launch.
      * @param erc20Args Arguments related to the ERC20 token.
      * @param launchArgs Arguments related to the launch.
+     * @param contributionComment The comment for the creator's contribution.
      * @return id ID of the new launch.
      */
     function createLaunch(
         ERC20Args memory erc20Args,
-        LaunchArgs memory launchArgs
+        LaunchArgs memory launchArgs,
+        string calldata contributionComment
     )
         external
         payable
@@ -214,10 +216,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         // Initialize empty Uniswap pool. Will be liquid after launch is successful and finalized.
         address pool = _initializeUniswapPool(launch, launchArgs.targetContribution - finalizationFee - flatLockFee);
 
-        // Contribute initial amount, if any, and attribute the contribution to the creator
-        uint96 initialContribution = msg.value.toUint96();
-        if (initialContribution > 0) {
-            (launch,) = _contribute(id, launch, msg.sender, initialContribution, "");
+        {
+            // Contribute initial amount, if any, and attribute the contribution to the creator
+            uint96 initialContribution = msg.value.toUint96();
+            if (initialContribution > 0) {
+                _contribute(id, launch, msg.sender, initialContribution, contributionComment);
+            }
         }
 
         emit LaunchCreated(id, msg.sender, token, pool, erc20Args, launchArgs);
