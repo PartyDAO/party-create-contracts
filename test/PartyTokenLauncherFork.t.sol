@@ -115,7 +115,7 @@ contract PartyTokenLauncherForkTest is Test {
             uint96 tokenBalance = uint96(token.balanceOf(contributor1));
             vm.startPrank(contributor1);
             token.approve(address(launch), tokenBalance);
-            launch.withdraw(launchId);
+            launch.withdraw(launchId, contributor1);
             vm.stopPrank();
 
             uint96 expectedETHReceived = launch.convertTokensReceivedToETHContributed(launchId, tokenBalance);

@@ -234,7 +234,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         uint96 tokenBalance = uint96(token.balanceOf(creator));
 
         vm.prank(creator);
-        uint96 ethReceived = launch.withdraw(launchId);
+        uint96 ethReceived = launch.withdraw(launchId, creator);
 
         uint96 expectedETHReturned = launch.convertTokensReceivedToETHContributed(launchId, tokenBalance);
         uint96 withdrawalFee = (expectedETHReturned * withdrawalFeeBps) / 10_000;
@@ -245,6 +245,27 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         (, res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
         (token,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
         assertEq(totalContributions, 0);
+    }
+
+    function test_withdraw_differentReceiver() public {
+        uint32 launchId = test_createLaunch_works();
+        address creator = vm.createWallet("Creator").addr;
+        address receiver = vm.createWallet("Receiver").addr;
+
+        // To avoid stack too deep errors
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (PartyERC20 token,,) = abi.decode(res, (PartyERC20, uint96, uint96));
+
+        uint96 tokenBalance = uint96(token.balanceOf(creator));
+
+        vm.prank(creator);
+        uint96 ethReceived = launch.withdraw(launchId, receiver);
+
+        uint96 expectedETHReturned = launch.convertTokensReceivedToETHContributed(launchId, tokenBalance);
+        uint96 withdrawalFee = (expectedETHReturned * withdrawalFeeBps) / 10_000;
+        assertEq(receiver.balance, expectedETHReturned - withdrawalFee);
+        assertEq(ethReceived, expectedETHReturned - withdrawalFee);
+        assertEq(creator.balance, 0);
     }
 
     function test_finalize_works() public {
