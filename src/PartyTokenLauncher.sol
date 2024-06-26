@@ -438,32 +438,39 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         // Add liquidity to the pool
         launch.token.approve(address(POSITION_MANAGER), launch.numTokensForLP);
 
-        // Use multicall to sweep back excess ETH
-        bytes[] memory calls = new bytes[](2);
-        calls[0] = abi.encodeCall(
-            POSITION_MANAGER.mint,
-            (
-                INonfungiblePositionManager.MintParams({
-                    token0: token0,
-                    token1: token1,
-                    fee: POOL_FEE,
-                    tickLower: MIN_TICK,
-                    tickUpper: MAX_TICK,
-                    amount0Desired: amount0,
-                    amount1Desired: amount1,
-                    amount0Min: 0,
-                    amount1Min: 0,
-                    recipient: address(this),
-                    deadline: block.timestamp
-                })
-            )
-        );
-        calls[1] = abi.encodePacked(POSITION_MANAGER.refundETH.selector);
-        bytes memory mintReturnData = IMulticall(address(POSITION_MANAGER)).multicall{ value: amountForPool }(calls)[0];
-        uint256 tokenId = abi.decode(mintReturnData, (uint256));
+        uint256 balanceBefore = address(this).balance;
+        uint256 tokenId;
 
-        // Transfer finalization fee to PartyDAO
-        payable(owner()).call{ value: finalizationFee, gas: 1e5 }("");
+        {
+            // Use multicall to sweep back excess ETH
+            bytes[] memory calls = new bytes[](2);
+            calls[0] = abi.encodeCall(
+                POSITION_MANAGER.mint,
+                (
+                    INonfungiblePositionManager.MintParams({
+                        token0: token0,
+                        token1: token1,
+                        fee: POOL_FEE,
+                        tickLower: MIN_TICK,
+                        tickUpper: MAX_TICK,
+                        amount0Desired: amount0,
+                        amount1Desired: amount1,
+                        amount0Min: 0,
+                        amount1Min: 0,
+                        recipient: address(this),
+                        deadline: block.timestamp
+                    })
+                )
+            );
+            calls[1] = abi.encodePacked(POSITION_MANAGER.refundETH.selector);
+            bytes memory mintReturnData =
+                IMulticall(address(POSITION_MANAGER)).multicall{ value: amountForPool }(calls)[0];
+            tokenId = abi.decode(mintReturnData, (uint256));
+            
+            // Transfer finalization fee to PartyDAO
+            uint256 excessEth = address(this).balance - (balanceBefore - amountForPool);
+            owner().call{ value: finalizationFee + excessEth, gas: 1e5 }("");
+        }
 
         // Transfer tokens to recipient
         if (launch.numTokensForRecipient > 0) {
@@ -554,5 +561,14 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
      */
     function VERSION() external pure returns (string memory) {
         return "0.5.0";
+    }
+
+    /**
+     * @notice Only to receive excess ETH from uniswap
+     */
+    receive() external payable {
+        if (msg.sender != address(POSITION_MANAGER)) {
+            revert InvalidRecipient();
+        }
     }
 }
