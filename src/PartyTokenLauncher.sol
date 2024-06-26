@@ -61,6 +61,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint96 newContribution, uint96 existingContributionsByAddress, uint96 maxContributionPerAddress
     );
     error InvalidLifecycleState(LaunchLifecycle actual, LaunchLifecycle expected);
+    error ETHTransferFailed(address recipient, uint96 amount);
 
     enum LaunchLifecycle {
         Active,
@@ -316,14 +317,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         }
 
         uint96 newTotalContributions = launch.totalContributions + amount;
+        uint96 excessContribution;
         if (newTotalContributions > launch.targetContribution) {
-            uint96 excess = newTotalContributions - launch.targetContribution;
-            amount -= excess;
+            excessContribution = newTotalContributions - launch.targetContribution;
+            amount -= excessContribution;
 
             newTotalContributions = launch.targetContribution;
-
-            // Refund excess contribution
-            payable(contributor).call{ value: excess, gas: 1e5 }("");
         }
 
         // Update state
@@ -341,6 +340,13 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         // Transfer the tokens to the contributor
         launch.token.transfer(contributor, tokensReceived);
+
+
+        if (excessContribution > 0) {
+            // Refund excess contribution
+            (bool success, ) = payable(contributor).call{ value: excessContribution, gas: 1e5 }("");
+            if (!success) revert ETHTransferFailed(contributor, excessContribution);
+        }
 
         return (launch, tokensReceived);
     }
