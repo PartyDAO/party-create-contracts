@@ -50,6 +50,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     event RecipientTransfer(uint32 indexed launchId, IERC20 indexed token, address indexed recipient, uint96 numTokens);
 
     error LaunchInvalid();
+    error InvalidRecipient();
     error TargetContributionTooLow();
     error NoLockerFeeRecipients();
     error TotalSupplyMismatch();
@@ -246,6 +247,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         uint16 totalAdditionalFeeRecipientsBps = 0;
         for (uint256 i = 0; i < launchArgs.lockerFeeRecipients.length; i++) {
+            if (launchArgs.lockerFeeRecipients[i].recipient == address(0)) revert InvalidRecipient();
             launch.lpInfo.additionalFeeRecipients.push(
                 PartyLPLocker.AdditionalFeeRecipient({
                     recipient: launchArgs.lockerFeeRecipients[i].recipient,

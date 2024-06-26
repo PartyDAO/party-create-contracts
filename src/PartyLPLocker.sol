@@ -11,6 +11,7 @@ import { IUNCX } from "./external/IUNCX.sol";
 contract PartyLPLocker is ILocker, IERC721Receiver {
     error OnlyPositionManager();
     error InvalidFeeBps();
+    error InvalidRecipient();
 
     enum FeeType {
         Token0,
@@ -88,6 +89,9 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
         uint256 token0TotalBps;
         uint256 token1TotalBps;
         for (uint256 i = 0; i < lpInfo.additionalFeeRecipients.length; i++) {
+            // Don't allow sending to address(0)
+            if (lpInfo.additionalFeeRecipients[i].recipient == address(0)) revert InvalidRecipient();
+
             lockStorages[lockId].additionalFeeRecipients.push(lpInfo.additionalFeeRecipients[i]);
 
             FeeType feeType = lpInfo.additionalFeeRecipients[i].feeType;
