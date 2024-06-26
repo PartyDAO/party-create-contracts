@@ -26,7 +26,7 @@ contract PartyTokenLauncherForkTest is Test {
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         uncx = IUNCX(0x231278eDd38B00B07fBd52120CEf685B9BaEBCC1);
-        lpLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
+        lpLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, uncx);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
@@ -73,7 +73,7 @@ contract PartyTokenLauncherForkTest is Test {
         });
 
         vm.prank(creator);
-        uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
 
         PartyERC20 token;
         uint96 totalContributions;
@@ -165,6 +165,8 @@ contract PartyTokenLauncherForkTest is Test {
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
             assertEq(token.balanceOf(launchArgs.recipient), launchArgs.numTokensForRecipient);
             assertApproxEqAbs(token.balanceOf(address(launch)), 0, 0.0001e18);
+            (,, bool launchSuccessful) = creatorNFT.tokenMetadatas(launchId);
+            assertEq(launchSuccessful, true);
         }
     }
 }

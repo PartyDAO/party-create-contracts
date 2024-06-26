@@ -10,6 +10,7 @@ import { PartyLPLocker } from "src/PartyLPLocker.sol";
 import { MockUNCX } from "./mock/MockUNCX.t.sol";
 import { PartyERC20 } from "src/PartyERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     MockUniswapV3Deployer.UniswapV3Deployment uniswapV3Deployment;
@@ -28,8 +29,10 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         adminToken = new PartyTokenAdminERC721("Party Admin", "PA", address(this));
         adminToken.setIsMinter(address(this), true);
         uncx = new MockUNCX();
-        locker = new PartyLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
-        token = new PartyERC20(adminToken);
+        locker = new PartyLPLocker(
+            address(this), INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx
+        );
+        token = PartyERC20(Clones.clone(address(new PartyERC20(adminToken))));
         token.initialize("Party Token", "PT", "description", 1 ether, address(this), address(this), 0);
 
         token.approve(uniswapV3Deployment.POSITION_MANAGER, 0.1 ether);
@@ -57,7 +60,9 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_constructor() external {
-        locker = new PartyLPLocker(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx);
+        locker = new PartyLPLocker(
+            address(this), INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx
+        );
 
         assertEq(address(locker.POSITION_MANAGER()), uniswapV3Deployment.POSITION_MANAGER);
         assertEq(address(locker.PARTY_TOKEN_ADMIN()), address(adminToken));
@@ -66,6 +71,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
 
     function test_onERC721Received_lockLp(address additionalFeeRecipient) external {
         vm.assume(additionalFeeRecipient != address(this));
+        vm.assume(additionalFeeRecipient != address(0));
 
         uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
 
@@ -143,6 +149,28 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         );
     }
 
+    function test_onERC721Received_invalidRecipient() external {
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](2);
+        additionalFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
+            recipient: address(0),
+            percentageBps: 1000,
+            feeType: PartyLPLocker.FeeType.Token1
+        });
+        PartyLPLocker.LPInfo memory lpInfo =
+            PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
+
+        uint96 flatLockFee = locker.getFlatLockFee();
+        vm.deal(address(locker), flatLockFee);
+
+        vm.expectRevert(PartyLPLocker.InvalidRecipient.selector);
+        INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
+        );
+    }
+
     function test_onERC721Received_notPositionManager() external {
         vm.expectRevert(PartyLPLocker.OnlyPositionManager.selector);
         locker.onERC721Received(address(0), address(0), 0, "");
@@ -190,5 +218,17 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
 
     function test_VERSION() external view {
         assertEq(locker.VERSION(), "0.1.0");
+    }
+
+    function test_setUncxCountryCode_setsStorage() external {
+        assertEq(locker.uncxCountryCode(), 0);
+        locker.setUncxCountryCode(1);
+        assertEq(locker.uncxCountryCode(), 1);
+    }
+
+    function test_setUncxFeeName_setsStorage() external {
+        assertEq(locker.uncxFeeName(), "LVP");
+        locker.setUncxFeeName("test");
+        assertEq(locker.uncxFeeName(), "test");
     }
 }
