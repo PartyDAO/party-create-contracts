@@ -162,6 +162,35 @@ contract PartyTokenLauncherTest is Test {
         assertEq(address(launch).balance, 6 ether);
     }
 
+    function test_contribute_refundExcessContribution() public {
+        uint32 launchId = test_createLaunch_works();
+        // Total contribution: 1 ether
+
+        address contributor = vm.createWallet("Contributor").addr;
+        vm.deal(contributor, 2 ether);
+
+        vm.prank(contributor);
+        launch.contribute{ value: 2 ether }(launchId, "", new bytes32[](0));
+        // Total contribution: 3 ether
+
+        address finalContributor = vm.createWallet("Final Contributor").addr;
+        vm.deal(finalContributor, 8 ether);
+
+        vm.prank(finalContributor);
+        launch.contribute{ value: 8 ether }(launchId, "", new bytes32[](0));
+        // Total contribution: 10 ether (expect 1 ether refund)
+
+        // To avoid stack too deep errors
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (PartyERC20 token,, uint96 totalContributions, uint96 targetContribution) =
+            abi.decode(res, (PartyERC20, bytes32, uint96, uint96));
+
+        assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
+        assertEq(token.balanceOf(finalContributor), launch.convertETHContributedToTokensReceived(launchId, 7 ether));
+        assertEq(totalContributions, targetContribution);
+        assertEq(finalContributor.balance, 1 ether);
+    }
+
     function test_contribute_cannotExceedMaxContributionPerAddress() public {
         uint32 launchId = test_createLaunch_works();
         address contributor = vm.createWallet("Contributor").addr;

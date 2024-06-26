@@ -60,7 +60,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     error ContributionsExceedsMaxPerAddress(
         uint96 newContribution, uint96 existingContributionsByAddress, uint96 maxContributionPerAddress
     );
-    error ContributionExceedsTarget(uint96 amountOverTarget, uint96 targetContribution);
     error InvalidLifecycleState(LaunchLifecycle actual, LaunchLifecycle expected);
 
     enum LaunchLifecycle {
@@ -318,9 +317,13 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         uint96 newTotalContributions = launch.totalContributions + amount;
         if (newTotalContributions > launch.targetContribution) {
-            revert ContributionExceedsTarget(
-                newTotalContributions - launch.targetContribution, launch.targetContribution
-            );
+            uint96 excess = newTotalContributions - launch.targetContribution;
+            amount -= excess;
+
+            newTotalContributions = launch.targetContribution;
+
+            // Refund excess contribution
+            payable(contributor).call{ value: excess, gas: 1e5 }("");
         }
 
         // Update state
