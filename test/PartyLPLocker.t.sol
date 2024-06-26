@@ -248,6 +248,6 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         locker.setUncxFeeName("test");
         assertEq(locker.uncxFeeName(), "test");
     }
-    
+
     receive() external payable { }
 }
