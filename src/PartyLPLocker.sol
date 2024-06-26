@@ -134,8 +134,11 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
 
         address remainingReceiver = PARTY_TOKEN_ADMIN.ownerOf(lockStorage.partyTokenAdminId);
 
-        IERC20(lockStorage.token0).transfer(remainingReceiver, IERC20(lockStorage.token0).balanceOf(address(this)));
-        IERC20(lockStorage.token1).transfer(remainingReceiver, IERC20(lockStorage.token1).balanceOf(address(this)));
+        uint256 remainingAmount0 = IERC20(lockStorage.token0).balanceOf(address(this));
+        if (remainingAmount0 > 0) IERC20(lockStorage.token0).transfer(remainingReceiver, remainingAmount0);
+
+        uint256 remainingAmount1 = IERC20(lockStorage.token1).balanceOf(address(this));
+        if (remainingAmount1 > 0) IERC20(lockStorage.token1).transfer(remainingReceiver, remainingAmount1);
     }
 
     function getFlatLockFee() external view returns (uint96) {
