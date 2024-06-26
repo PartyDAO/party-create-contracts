@@ -466,7 +466,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             bytes memory mintReturnData =
                 IMulticall(address(POSITION_MANAGER)).multicall{ value: amountForPool }(calls)[0];
             tokenId = abi.decode(mintReturnData, (uint256));
-            
+
             // Transfer finalization fee to PartyDAO
             uint256 excessEth = address(this).balance - (balanceBefore - amountForPool);
             owner().call{ value: finalizationFee + excessEth, gas: 1e5 }("");
