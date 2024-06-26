@@ -165,6 +165,8 @@ contract PartyTokenLauncherForkTest is Test {
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
             assertEq(token.balanceOf(launchArgs.recipient), launchArgs.numTokensForRecipient);
             assertApproxEqAbs(token.balanceOf(address(launch)), 0, 0.0001e18);
+            (,, bool launchSuccessful) = creatorNFT.tokenMetadatas(launchId);
+            assertEq(launchSuccessful, true);
         }
     }
 }
