@@ -179,7 +179,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
      * @notice Withdraw excess ETH stored in this contract
      * @param recipient Address ETH should be sent to
      */
-    function withdrawEth(address recipient) external onlyOwner {
+    function sweep(address recipient) external onlyOwner {
         if (recipient == address(0)) revert InvalidRecipient();
 
         uint256 balance = address(this).balance;
