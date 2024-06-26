@@ -183,6 +183,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         if (launchArgs.lockerFeeRecipients.length == 0) {
             revert NoLockerFeeRecipients();
         }
+        if (launchArgs.numTokensForRecipient > 0 && launchArgs.recipient == address(0)) revert LaunchInvalid();
 
         id = ++numOfLaunches;
 
