@@ -52,7 +52,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         assertEq(address(launch.UNISWAP_FACTORY()), address(uniswapFactory));
         assertEq(address(launch.WETH()), weth);
         assertEq(launch.POOL_FEE(), poolFee);
-        assertEq(address(launch.positionLocker()), address(positionLocker));
+        assertEq(address(launch.POSITION_LOCKER()), address(positionLocker));
     }
 
     function test_createLaunch_works() public returns (uint32 launchId) {
@@ -324,14 +324,6 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         vm.prank(creator);
         vm.expectRevert(PartyTokenLauncher.InvalidBps.selector);
         launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
-    }
-
-    function test_setPositionLocker_works() public {
-        PartyLPLocker newPositionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, uncx);
-        vm.prank(partyDAO);
-        launch.setPositionLocker(newPositionLocker);
-
-        assertEq(address(launch.positionLocker()), address(newPositionLocker));
     }
 
     function test_constructor_invalidUniswapPoolFee() external {
