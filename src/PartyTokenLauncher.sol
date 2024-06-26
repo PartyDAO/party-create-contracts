@@ -116,7 +116,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     int24 public immutable MIN_TICK;
     int24 public immutable MAX_TICK;
     address public immutable WETH;
-    ILocker public POSITION_LOCKER;
+    ILocker public immutable POSITION_LOCKER;
 
     uint32 public numOfLaunches;
 
