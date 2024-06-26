@@ -178,14 +178,14 @@ contract PartyTokenLauncherTest is Test {
 
         vm.prank(creator);
         vm.expectRevert(PartyTokenLauncher.InvalidFee.selector);
-        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "Launch comment");
 
         launchArgs.finalizationFeeBps = 0;
         launchArgs.withdrawalFeeBps = 251;
 
         vm.prank(creator);
         vm.expectRevert(PartyTokenLauncher.InvalidFee.selector);
-        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "The first contribution!");
     }
 
     function test_contribute_works() public {
@@ -322,7 +322,7 @@ contract PartyTokenLauncherTest is Test {
 
         vm.prank(creator);
         vm.expectRevert(PartyTokenLauncher.InvalidBps.selector);
-        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
     }
 
     function test_setPositionLocker_works() public {
@@ -369,6 +369,6 @@ contract PartyTokenLauncherTest is Test {
 
         vm.prank(creator);
         vm.expectRevert(PartyTokenLauncher.InvalidRecipient.selector);
-        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "I'm the first contributor");
     }
 }
