@@ -216,6 +216,23 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         assertEq(token1.balanceOf(adminToken.ownerOf(adminTokenId)), amount1 - 1000 * amount1 / 10_000);
     }
 
+    function test_withdrawEth_nonNull() external {
+        address(locker).call{ value: 1 ether }("");
+
+        uint256 beforeBalance = address(this).balance;
+        assertEq(address(locker).balance, 1 ether);
+
+        locker.sweep(address(this));
+
+        assertEq(address(locker).balance, 0);
+        assertEq(address(this).balance, beforeBalance + 1 ether);
+    }
+
+    function test_withdrawEth_null() external {
+        vm.expectRevert(PartyLPLocker.InvalidRecipient.selector);
+        locker.sweep(address(0));
+    }
+
     function test_VERSION() external view {
         assertEq(locker.VERSION(), "0.1.0");
     }
@@ -231,4 +248,6 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         locker.setUncxFeeName("test");
         assertEq(locker.uncxFeeName(), "test");
     }
+
+    receive() external payable { }
 }

@@ -181,6 +181,19 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         return "0.1.0";
     }
 
-    /// @dev Allow receiving ETH for UNCX flat fee
+    /**
+     * @notice Withdraw excess ETH stored in this contract
+     * @param recipient Address ETH should be sent to
+     */
+    function sweep(address recipient) external onlyOwner {
+        if (recipient == address(0)) revert InvalidRecipient();
+
+        uint256 balance = address(this).balance;
+        if (balance != 0) payable(recipient).transfer(address(this).balance);
+    }
+
+    /**
+     * @dev Allow receiving ETH for UNCX flat fee
+     */
     receive() external payable { }
 }
