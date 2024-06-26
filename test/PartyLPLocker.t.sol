@@ -10,6 +10,7 @@ import { PartyLPLocker } from "src/PartyLPLocker.sol";
 import { MockUNCX } from "./mock/MockUNCX.t.sol";
 import { PartyERC20 } from "src/PartyERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     MockUniswapV3Deployer.UniswapV3Deployment uniswapV3Deployment;
@@ -31,7 +32,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         locker = new PartyLPLocker(
             address(this), INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx
         );
-        token = new PartyERC20(adminToken);
+        token = PartyERC20(Clones.clone(address(new PartyERC20(adminToken))));
         token.initialize("Party Token", "PT", "description", 1 ether, address(this), address(this), 0);
 
         token.approve(uniswapV3Deployment.POSITION_MANAGER, 0.1 ether);
@@ -70,6 +71,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
 
     function test_onERC721Received_lockLp(address additionalFeeRecipient) external {
         vm.assume(additionalFeeRecipient != address(this));
+        vm.assume(additionalFeeRecipient != address(0));
 
         uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
 
@@ -142,6 +144,28 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         vm.deal(address(locker), flatLockFee);
 
         vm.expectRevert(PartyLPLocker.InvalidFeeBps.selector);
+        INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
+        );
+    }
+
+    function test_onERC721Received_invalidRecipient() external {
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](2);
+        additionalFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
+            recipient: address(0),
+            percentageBps: 1000,
+            feeType: PartyLPLocker.FeeType.Token1
+        });
+        PartyLPLocker.LPInfo memory lpInfo =
+            PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
+
+        uint96 flatLockFee = locker.getFlatLockFee();
+        vm.deal(address(locker), flatLockFee);
+
+        vm.expectRevert(PartyLPLocker.InvalidRecipient.selector);
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
             address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
         );

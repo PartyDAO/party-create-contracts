@@ -39,6 +39,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
      */
     constructor(PartyTokenAdminERC721 adminNft) {
         ADMIN_NFT = adminNft;
+        _disableInitializers();
     }
 
     /**
@@ -74,7 +75,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
     }
 
     /**
-     *  @dev Only owner can transfer functions when paused. They can transfer out or call `transferFrom` to
+     * @dev Only owner can transfer tokens when paused. They can transfer out or call `transferFrom` to
      * themselves.
      */
     function _update(
@@ -150,11 +151,11 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
     /**
      * @dev Disable delegating to address(0).
      */
-    function delegate(address delegatee) public override {
+    function _delegate(address account, address delegatee) internal virtual override {
         if (delegatee == address(0)) {
             revert InvalidDelegate();
         }
-        super.delegate(delegatee);
+        super._delegate(account, delegatee);
     }
 
     /**
