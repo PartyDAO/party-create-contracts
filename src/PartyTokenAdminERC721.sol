@@ -122,6 +122,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         tokenMetadatas[tokenId].image = image;
 
         emit TokenImageSet(tokenId, image);
+        emit MetadataUpdate(tokenId);
     }
 
     /**
