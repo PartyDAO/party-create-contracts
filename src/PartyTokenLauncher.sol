@@ -111,7 +111,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
     PartyTokenAdminERC721 public immutable TOKEN_ADMIN_ERC721;
     PartyERC20 public immutable PARTY_ERC20_LOGIC;
-    INonfungiblePositionManager public immutable POSTION_MANAGER;
+    INonfungiblePositionManager public immutable POSITION_MANAGER;
     IUniswapV3Factory public immutable UNISWAP_FACTORY;
     uint24 public immutable POOL_FEE;
     int24 public immutable MIN_TICK;
@@ -141,7 +141,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     {
         TOKEN_ADMIN_ERC721 = tokenAdminERC721;
         PARTY_ERC20_LOGIC = partyERC20Logic;
-        POSTION_MANAGER = positionManager;
+        POSITION_MANAGER = positionManager;
         UNISWAP_FACTORY = uniswapFactory;
         WETH = weth;
         POOL_FEE = poolFee;
@@ -422,8 +422,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             : (launch.numTokensForLP, amountForPool);
 
         // Add liquidity to the pool
-        launch.token.approve(address(POSTION_MANAGER), launch.numTokensForLP);
-        (uint256 tokenId,,,) = POSTION_MANAGER.mint{ value: amountForPool }(
+        launch.token.approve(address(POSITION_MANAGER), launch.numTokensForLP);
+        (uint256 tokenId,,,) = POSITION_MANAGER.mint{ value: amountForPool }(
             INonfungiblePositionManager.MintParams({
                 token0: token0,
                 token1: token1,
@@ -464,7 +464,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         }
 
         // Transfer LP to fee locker contract
-        POSTION_MANAGER.safeTransferFrom(
+        POSITION_MANAGER.safeTransferFrom(
             address(this), address(positionLocker), tokenId, abi.encode(launch.lpInfo, flatLockFee)
         );
 
