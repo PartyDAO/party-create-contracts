@@ -14,6 +14,7 @@ import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Rec
 import { IUniswapV3Factory } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
+import { IMulticall } from "@uniswap/v3-periphery/contracts/interfaces/IMulticall.sol";
 import { ILocker } from "./interfaces/ILocker.sol";
 
 contract PartyTokenLauncher is Ownable, IERC721Receiver {
@@ -438,21 +439,30 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         // Add liquidity to the pool
         launch.token.approve(address(POSITION_MANAGER), launch.numTokensForLP);
-        (uint256 tokenId,,,) = POSITION_MANAGER.mint{ value: amountForPool }(
-            INonfungiblePositionManager.MintParams({
-                token0: token0,
-                token1: token1,
-                fee: POOL_FEE,
-                tickLower: MIN_TICK,
-                tickUpper: MAX_TICK,
-                amount0Desired: amount0,
-                amount1Desired: amount1,
-                amount0Min: 0,
-                amount1Min: 0,
-                recipient: address(this),
-                deadline: block.timestamp
-            })
+
+        // Use multicall to sweep back excess ETH
+        bytes[] memory calls = new bytes[](2);
+        calls[0] = abi.encodeCall(
+            POSITION_MANAGER.mint,
+            (
+                INonfungiblePositionManager.MintParams({
+                    token0: token0,
+                    token1: token1,
+                    fee: POOL_FEE,
+                    tickLower: MIN_TICK,
+                    tickUpper: MAX_TICK,
+                    amount0Desired: amount0,
+                    amount1Desired: amount1,
+                    amount0Min: 0,
+                    amount1Min: 0,
+                    recipient: address(this),
+                    deadline: block.timestamp
+                })
+            )
         );
+        calls[1] = abi.encodePacked(POSITION_MANAGER.refundETH.selector);
+        bytes memory mintReturnData = IMulticall(address(POSITION_MANAGER)).multicall{ value: amountForPool }(calls)[0];
+        uint256 tokenId = abi.decode(mintReturnData, (uint256));
 
         // Transfer finalization fee to PartyDAO
         payable(owner()).call{ value: finalizationFee, gas: 1e5 }("");
