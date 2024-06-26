@@ -150,11 +150,11 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
     /**
      * @dev Disable delegating to address(0).
      */
-    function delegate(address delegatee) public override {
+    function _delegate(address account, address delegatee) internal virtual override {
         if (delegatee == address(0)) {
             revert InvalidDelegate();
         }
-        super.delegate(delegatee);
+        super._delegate(account, delegatee);
     }
 
     /**
