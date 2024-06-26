@@ -73,7 +73,7 @@ contract PartyTokenLauncherForkTest is Test {
         });
 
         vm.prank(creator);
-        uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        uint32 launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
 
         PartyERC20 token;
         uint96 totalContributions;
@@ -165,6 +165,8 @@ contract PartyTokenLauncherForkTest is Test {
             assertEq(partyDAO.balance, expectedPartyDAOBalance);
             assertEq(token.balanceOf(launchArgs.recipient), launchArgs.numTokensForRecipient);
             assertApproxEqAbs(token.balanceOf(address(launch)), 0, 0.0001e18);
+            (,, bool launchSuccessful) = creatorNFT.tokenMetadatas(launchId);
+            assertEq(launchSuccessful, true);
         }
     }
 }
