@@ -7,10 +7,12 @@ import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Rec
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IUNCX } from "./external/IUNCX.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract PartyLPLocker is ILocker, IERC721Receiver {
+contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     error OnlyPositionManager();
     error InvalidFeeBps();
+    error InvalidRecipient();
 
     enum FeeType {
         Token0,
@@ -41,8 +43,19 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
     IUNCX public immutable UNCX;
 
     mapping(uint256 => LockStorage) public lockStorages;
+    /// @notice UNCX country code to use when locking in UNCX
+    uint16 public uncxCountryCode;
+    /// @notice UNCX fee name to use when locking in UNCX
+    string public uncxFeeName = "LVP";
 
-    constructor(INonfungiblePositionManager positionManager, IERC721 partyTokenAdmin, IUNCX uncx) {
+    constructor(
+        address owner,
+        INonfungiblePositionManager positionManager,
+        IERC721 partyTokenAdmin,
+        IUNCX uncx
+    )
+        Ownable(owner)
+    {
         POSITION_MANAGER = positionManager;
         PARTY_TOKEN_ADMIN = partyTokenAdmin;
         UNCX = uncx;
@@ -69,8 +82,8 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
             additionalCollector: address(0),
             collectAddress: lpInfo.additionalFeeRecipients[0].recipient,
             unlockDate: type(uint256).max,
-            countryCode: 0,
-            feeName: "LVP",
+            countryCode: uncxCountryCode,
+            feeName: uncxFeeName,
             r: new bytes[](0)
         });
 
@@ -88,6 +101,9 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
         uint256 token0TotalBps;
         uint256 token1TotalBps;
         for (uint256 i = 0; i < lpInfo.additionalFeeRecipients.length; i++) {
+            // Don't allow sending to address(0)
+            if (lpInfo.additionalFeeRecipients[i].recipient == address(0)) revert InvalidRecipient();
+
             lockStorages[lockId].additionalFeeRecipients.push(lpInfo.additionalFeeRecipients[i]);
 
             FeeType feeType = lpInfo.additionalFeeRecipients[i].feeType;
@@ -130,12 +146,31 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
 
         address remainingReceiver = PARTY_TOKEN_ADMIN.ownerOf(lockStorage.partyTokenAdminId);
 
-        IERC20(lockStorage.token0).transfer(remainingReceiver, IERC20(lockStorage.token0).balanceOf(address(this)));
-        IERC20(lockStorage.token1).transfer(remainingReceiver, IERC20(lockStorage.token1).balanceOf(address(this)));
+        uint256 remainingAmount0 = IERC20(lockStorage.token0).balanceOf(address(this));
+        if (remainingAmount0 > 0) IERC20(lockStorage.token0).transfer(remainingReceiver, remainingAmount0);
+
+        uint256 remainingAmount1 = IERC20(lockStorage.token1).balanceOf(address(this));
+        if (remainingAmount1 > 0) IERC20(lockStorage.token1).transfer(remainingReceiver, remainingAmount1);
     }
 
     function getFlatLockFee() external view returns (uint96) {
         return uint96(UNCX.getFee("LVP").flatFee);
+    }
+
+    /**
+     * @notice Set the country code to use when locking in UNCX
+     * @param newUncxCountryCode New UNCX country code
+     */
+    function setUncxCountryCode(uint16 newUncxCountryCode) external onlyOwner {
+        uncxCountryCode = newUncxCountryCode;
+    }
+
+    /**
+     * @notice Set the fee name to use when locking in UNCX
+     * @param newUncxFeeName New UNCX fee name
+     */
+    function setUncxFeeName(string memory newUncxFeeName) external onlyOwner {
+        uncxFeeName = newUncxFeeName;
     }
 
     /**
@@ -146,6 +181,19 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
         return "0.1.0";
     }
 
-    /// @dev Allow receiving ETH for UNCX flat fee
+    /**
+     * @notice Withdraw excess ETH stored in this contract
+     * @param recipient Address ETH should be sent to
+     */
+    function sweep(address recipient) external onlyOwner {
+        if (recipient == address(0)) revert InvalidRecipient();
+
+        uint256 balance = address(this).balance;
+        if (balance != 0) payable(recipient).transfer(address(this).balance);
+    }
+
+    /**
+     * @dev Allow receiving ETH for UNCX flat fee
+     */
     receive() external payable { }
 }

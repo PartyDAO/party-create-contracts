@@ -20,7 +20,8 @@ contract MockUniswapV3Factory is IUniswapV3Factory {
     function setOwner(address) external { }
     function enableFeeAmount(uint24, int24) external { }
 
-    function feeAmountTickSpacing(uint24) external pure returns (int24) {
+    function feeAmountTickSpacing(uint24 fee) external pure returns (int24) {
+        if (fee == type(uint24).max) return 0;
         return 100;
     }
 

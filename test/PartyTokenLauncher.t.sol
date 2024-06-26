@@ -5,11 +5,12 @@ import "forge-std/src/Test.sol";
 import { WETH9 } from "./mock/WETH.t.sol";
 import { MockUniswapV3Factory } from "./mock/MockUniswapV3Factory.t.sol";
 import { MockUniswapNonfungiblePositionManager } from "./mock/MockUniswapNonfungiblePositionManager.t.sol";
+import { MockUniswapV3Deployer } from "./mock/MockUniswapV3Deployer.t.sol";
 import { MockUNCX, IUNCX } from "./mock/MockUNCX.t.sol";
 
 import "../src/PartyTokenLauncher.sol";
 
-contract PartyTokenLauncherTest is Test {
+contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
     PartyTokenLauncher launch;
     PartyERC20 partyERC20Logic;
     PartyTokenAdminERC721 creatorNFT;
@@ -26,17 +27,17 @@ contract PartyTokenLauncherTest is Test {
     uint16 withdrawalFeeBps = 200; // 2%
 
     function setUp() public {
-        weth = payable(address(new WETH9()));
-        uniswapFactory = IUniswapV3Factory(address(new MockUniswapV3Factory()));
-        positionManager = INonfungiblePositionManager(
-            address(new MockUniswapNonfungiblePositionManager(address(weth), address(uniswapFactory)))
-        );
+        MockUniswapV3Deployer.UniswapV3Deployment memory deploy = _deployUniswapV3();
+
+        weth = deploy.WETH;
+        uniswapFactory = IUniswapV3Factory(deploy.FACTORY);
+        positionManager = INonfungiblePositionManager(deploy.POSITION_MANAGER);
         uncx = new MockUNCX();
         poolFee = 3000;
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PTA721", address(this));
-        positionLocker = new PartyLPLocker(positionManager, creatorNFT, uncx);
+        positionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, uncx);
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
             partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, weth, poolFee, positionLocker
@@ -47,7 +48,7 @@ contract PartyTokenLauncherTest is Test {
     function test_constructor_works() public view {
         assertEq(address(launch.owner()), partyDAO);
         assertEq(address(launch.TOKEN_ADMIN_ERC721()), address(creatorNFT));
-        assertEq(address(launch.POSTION_MANAGER()), address(positionManager));
+        assertEq(address(launch.POSITION_MANAGER()), address(positionManager));
         assertEq(address(launch.UNISWAP_FACTORY()), address(uniswapFactory));
         assertEq(address(launch.WETH()), weth);
         assertEq(launch.POOL_FEE(), poolFee);
@@ -88,7 +89,7 @@ contract PartyTokenLauncherTest is Test {
         });
 
         vm.prank(creator);
-        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs);
+        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "I am the creator");
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Active);
 
@@ -138,9 +139,54 @@ contract PartyTokenLauncherTest is Test {
         });
 
         vm.prank(creator);
-        launchId = launch.createLaunch{ value: 10 ether }(erc20Args, launchArgs);
+        launchId = launch.createLaunch{ value: 10 ether }(erc20Args, launchArgs, "");
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
+    }
+
+    function test_createLaunch_invalidFee() external {
+        address creator = vm.createWallet("Creator").addr;
+        address recipient = vm.createWallet("Recipient").addr;
+        vm.deal(creator, 1 ether);
+
+        PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
+            new PartyTokenLauncher.LockerFeeRecipient[](1);
+        lockerFeeRecipients[0] = PartyTokenLauncher.LockerFeeRecipient({
+            recipient: vm.createWallet("AdditionalLPFeeRecipient").addr,
+            bps: 1e4
+        });
+
+        PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
+            name: "NewToken",
+            symbol: "NT",
+            image: "image_url",
+            description: "New Token Description",
+            totalSupply: 1_000_000 ether
+        });
+
+        PartyTokenLauncher.LaunchArgs memory launchArgs = PartyTokenLauncher.LaunchArgs({
+            numTokensForLP: 500_000 ether,
+            numTokensForDistribution: 300_000 ether,
+            numTokensForRecipient: 200_000 ether,
+            targetContribution: 10 ether,
+            maxContributionPerAddress: 8 ether,
+            merkleRoot: bytes32(0),
+            recipient: recipient,
+            finalizationFeeBps: 251,
+            withdrawalFeeBps: withdrawalFeeBps,
+            lockerFeeRecipients: lockerFeeRecipients
+        });
+
+        vm.prank(creator);
+        vm.expectRevert(PartyTokenLauncher.InvalidFee.selector);
+        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "Launch comment");
+
+        launchArgs.finalizationFeeBps = 0;
+        launchArgs.withdrawalFeeBps = 251;
+
+        vm.prank(creator);
+        vm.expectRevert(PartyTokenLauncher.InvalidFee.selector);
+        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "The first contribution!");
     }
 
     function test_contribute_works() public {
@@ -234,9 +280,102 @@ contract PartyTokenLauncherTest is Test {
         assertEq(contributor2.balance, 0);
         assertEq(token.balanceOf(address(launch)), 0);
         assertEq(address(launch).balance, 0);
+        (,, bool launchSuccessful) = creatorNFT.tokenMetadatas(launchId);
+        assertEq(launchSuccessful, true);
+    }
+
+    function test_createLaunch_tooMuchToAdditionalRecipients_invalidBps() external {
+        address creator = vm.createWallet("Creator").addr;
+        address recipient = vm.createWallet("Recipient").addr;
+        vm.deal(creator, 1 ether);
+
+        PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
+            new PartyTokenLauncher.LockerFeeRecipient[](2);
+        lockerFeeRecipients[0] = PartyTokenLauncher.LockerFeeRecipient({
+            recipient: vm.createWallet("AdditionalLPFeeRecipient").addr,
+            bps: 1e4
+        });
+        lockerFeeRecipients[1] = PartyTokenLauncher.LockerFeeRecipient({
+            recipient: vm.createWallet("AdditionalLPFeeRecipient2").addr,
+            bps: 9100
+        });
+
+        PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
+            name: "NewToken",
+            symbol: "NT",
+            image: "image_url",
+            description: "New Token Description",
+            totalSupply: 1_000_000 ether
+        });
+
+        PartyTokenLauncher.LaunchArgs memory launchArgs = PartyTokenLauncher.LaunchArgs({
+            numTokensForLP: 500_000 ether,
+            numTokensForDistribution: 300_000 ether,
+            numTokensForRecipient: 200_000 ether,
+            targetContribution: 10 ether,
+            maxContributionPerAddress: 8 ether,
+            merkleRoot: bytes32(0),
+            recipient: recipient,
+            finalizationFeeBps: finalizationFeeBps,
+            withdrawalFeeBps: withdrawalFeeBps,
+            lockerFeeRecipients: lockerFeeRecipients
+        });
+
+        vm.prank(creator);
+        vm.expectRevert(PartyTokenLauncher.InvalidBps.selector);
+        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
+    }
+
+    function test_constructor_invalidUniswapPoolFee() external {
+        vm.expectRevert(PartyTokenLauncher.InvalidUniswapPoolFee.selector);
+        launch = new PartyTokenLauncher(
+            partyDAO,
+            creatorNFT,
+            partyERC20Logic,
+            positionManager,
+            uniswapFactory,
+            weth,
+            type(uint24).max,
+            positionLocker
+        );
     }
 
     function test_VERSION_works() public view {
         assertEq(launch.VERSION(), "0.5.0");
+    }
+
+    function test_createLaunch_invalidRecipient() public returns (uint32 launchId) {
+        address creator = vm.createWallet("Creator").addr;
+        address recipient = vm.createWallet("Recipient").addr;
+        vm.deal(creator, 1 ether);
+
+        PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
+            new PartyTokenLauncher.LockerFeeRecipient[](1);
+        lockerFeeRecipients[0] = PartyTokenLauncher.LockerFeeRecipient({ recipient: address(0), bps: 1e4 });
+
+        PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
+            name: "NewToken",
+            symbol: "NT",
+            image: "image_url",
+            description: "New Token Description",
+            totalSupply: 1_000_000 ether
+        });
+
+        PartyTokenLauncher.LaunchArgs memory launchArgs = PartyTokenLauncher.LaunchArgs({
+            numTokensForLP: 500_000 ether,
+            numTokensForDistribution: 300_000 ether,
+            numTokensForRecipient: 200_000 ether,
+            targetContribution: 10 ether,
+            maxContributionPerAddress: 8 ether,
+            merkleRoot: bytes32(0),
+            recipient: recipient,
+            finalizationFeeBps: finalizationFeeBps,
+            withdrawalFeeBps: withdrawalFeeBps,
+            lockerFeeRecipients: lockerFeeRecipients
+        });
+
+        vm.prank(creator);
+        vm.expectRevert(PartyTokenLauncher.InvalidRecipient.selector);
+        launchId = launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "I'm the first contributor");
     }
 }
