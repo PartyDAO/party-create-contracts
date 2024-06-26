@@ -75,7 +75,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
     }
 
     /**
-     *  @dev Only owner can transfer functions when paused. They can transfer out or call `transferFrom` to
+     * @dev Only owner can transfer tokens when paused. They can transfer out or call `transferFrom` to
      * themselves.
      */
     function _update(
