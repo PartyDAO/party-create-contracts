@@ -43,7 +43,7 @@
           "address": "0x4d750275E11D764eeD1CDB171c8BbDf3a56aaB05"
         }
       ],
-      "constructorArgs": ["positionManager", "PartyTokenAdminERC721", "uncx"]
+      "constructorArgs": ["partyDao", "positionManager", "PartyTokenAdminERC721", "uncx"]
     },
     "PartyTokenLauncher": {
       "deploys": [
