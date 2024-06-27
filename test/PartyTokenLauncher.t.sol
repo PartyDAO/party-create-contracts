@@ -256,7 +256,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
     }
 
     function test_contribute_tokenAddressDoesNotMatch() external {
-        (uint32 launchId, ) = test_createLaunch_works();
+        (uint32 launchId,) = test_createLaunch_works();
         address contributor = vm.createWallet("Contributor").addr;
         vm.deal(contributor, 5 ether);
 

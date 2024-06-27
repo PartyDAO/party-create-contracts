@@ -358,10 +358,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         // Transfer the tokens to the contributor
         launch.token.transfer(contributor, tokensReceived);
 
-
         if (excessContribution > 0) {
             // Refund excess contribution
-            (bool success, ) = payable(contributor).call{ value: excessContribution, gas: 1e5 }("");
+            (bool success,) = payable(contributor).call{ value: excessContribution, gas: 1e5 }("");
             if (!success) revert ETHTransferFailed(contributor, excessContribution);
         }
 
