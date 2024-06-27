@@ -7,6 +7,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { UseImmutableCreate2Factory } from "./util/UseImmutableCreate2Factory.t.sol";
 import { PartyTokenAdminERC721 } from "../src/PartyTokenAdminERC721.sol";
 import { Vm } from "forge-std/src/Test.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract PartyERC20Test is UseImmutableCreate2Factory {
     PartyERC20 public token;
@@ -17,9 +18,10 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
     function setUp() public override {
         super.setUp();
         adminNFTId = new PartyTokenAdminERC721("Admin NFT", "ON", address(this));
-        token = PartyERC20(
-            factory.safeCreate2(bytes32(0), abi.encodePacked(type(PartyERC20).creationCode, abi.encode(adminNFTId)))
-        );
+        address tokenImpl =
+            factory.safeCreate2(bytes32(0), abi.encodePacked(type(PartyERC20).creationCode, abi.encode(adminNFTId)));
+
+        token = PartyERC20(Clones.clone(tokenImpl));
         token.initialize("PartyERC20", "PARTY", "MyDescription", 100_000, address(this), address(this), 1);
 
         adminNFTId.setIsMinter(address(this), true);
