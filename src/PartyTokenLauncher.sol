@@ -57,15 +57,14 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     error NoLockerFeeRecipients();
     error TotalSupplyMismatch();
     error TotalSupplyExceedsLimit();
-    error EthTransferFailed();
     error InvalidMerkleProof();
     error InvalidBps();
     error ContributionZero();
     error ContributionsExceedsMaxPerAddress(
         uint96 newContribution, uint96 existingContributionsByAddress, uint96 maxContributionPerAddress
     );
-    error ContributionExceedsTarget(uint96 amountOverTarget, uint96 targetContribution);
     error InvalidLifecycleState(LaunchLifecycle actual, LaunchLifecycle expected);
+    error ETHTransferFailed(address recipient, uint96 amount);
     error InvalidFee();
 
     enum LaunchLifecycle {
@@ -355,10 +354,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         }
 
         uint96 newTotalContributions = launch.totalContributions + amount;
+        uint96 excessContribution;
         if (newTotalContributions > launch.targetContribution) {
-            revert ContributionExceedsTarget(
-                newTotalContributions - launch.targetContribution, launch.targetContribution
-            );
+            excessContribution = newTotalContributions - launch.targetContribution;
+            amount -= excessContribution;
+
+            newTotalContributions = launch.targetContribution;
         }
 
         // Update state
@@ -376,6 +377,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         // Transfer the tokens to the contributor
         launch.token.transfer(contributor, tokensReceived);
+
+        if (excessContribution > 0) {
+            // Refund excess contribution
+            (bool success,) = payable(contributor).call{ value: excessContribution, gas: 1e5 }("");
+            if (!success) revert ETHTransferFailed(contributor, excessContribution);
+        }
 
         return (launch, tokensReceived);
     }
@@ -556,7 +563,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         // Transfer ETH to sender
         (bool success,) = receiver.call{ value: ethReceived, gas: 1e5 }("");
-        if (!success) revert EthTransferFailed();
+        if (!success) revert ETHTransferFailed(receiver, ethReceived);
 
         emit Withdraw(launchId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
     }
