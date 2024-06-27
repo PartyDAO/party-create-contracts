@@ -11,6 +11,8 @@ import { MockUNCX, IUNCX } from "./mock/MockUNCX.t.sol";
 import "../src/PartyTokenLauncher.sol";
 
 contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
+    event AllowlistUpdated(uint32 indexed launchId, bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
+
     PartyTokenLauncher launch;
     PartyERC20 partyERC20Logic;
     PartyTokenAdminERC721 creatorNFT;
@@ -196,6 +198,9 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         bytes32 newMerkleRoot = keccak256(abi.encodePacked("newMerkleRoot"));
 
         address tokenAdmin = creatorNFT.ownerOf(launchId);
+
+        vm.expectEmit(true, true, true, true);
+        emit AllowlistUpdated(launchId, bytes32(0), newMerkleRoot);
 
         vm.prank(tokenAdmin);
         launch.updateAllowlist(launchId, newMerkleRoot);
