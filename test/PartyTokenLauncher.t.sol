@@ -20,6 +20,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
     IUniswapV3Factory public uniswapFactory;
     IUNCX public uncx;
     address payable public weth;
+    address public launchToken;
     uint24 public poolFee;
 
     uint16 finalizationFeeBps = 100; // 1%
@@ -194,12 +195,16 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         address contributor = vm.createWallet("Contributor").addr;
         vm.deal(contributor, 5 ether);
 
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (PartyERC20 token,,) = abi.decode(res, (PartyERC20, uint96, uint96));
+
         vm.prank(contributor);
-        launch.contribute{ value: 5 ether }(launchId, "Adding funds", new bytes32[](0));
+        launch.contribute{ value: 5 ether }(launchId, address(token), "Adding funds", new bytes32[](0));
 
         // To avoid stack too deep errors
-        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
-        (PartyERC20 token,, uint96 totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
+        (, res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        uint96 totalContributions;
+        (token,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
 
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 5 ether);
         assertEq(token.balanceOf(contributor), expectedTokensReceived);
@@ -213,14 +218,27 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         address contributor = vm.createWallet("Contributor").addr;
         vm.deal(contributor, 8 ether + 1);
 
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (PartyERC20 token,,) = abi.decode(res, (PartyERC20, uint96, uint96));
+
         vm.prank(contributor);
-        launch.contribute{ value: 8 ether }(launchId, "", new bytes32[](0));
+        launch.contribute{ value: 8 ether }(launchId, address(token), "", new bytes32[](0));
 
         vm.prank(contributor);
         vm.expectRevert(
             abi.encodeWithSelector(PartyTokenLauncher.ContributionsExceedsMaxPerAddress.selector, 1, 8 ether, 8 ether)
         );
-        launch.contribute{ value: 1 }(launchId, "", new bytes32[](0));
+        launch.contribute{ value: 1 }(launchId, address(token), "", new bytes32[](0));
+    }
+
+    function test_contribute_tokenAddressDoesNotMatch() external {
+        uint32 launchId = test_createLaunch_works();
+        address contributor = vm.createWallet("Contributor").addr;
+        vm.deal(contributor, 5 ether);
+
+        vm.prank(contributor);
+        vm.expectRevert(PartyTokenLauncher.LaunchInvalid.selector);
+        launch.contribute{ value: 5 ether }(launchId, address(uncx), "", new bytes32[](0));
     }
 
     function test_withdraw_works() public {
@@ -250,23 +268,26 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
     function test_finalize_works() public {
         uint32 launchId = test_createLaunch_works();
 
-        address contributor = vm.createWallet("Contributor").addr;
-        vm.deal(contributor, 2 ether);
-        vm.prank(contributor);
-        launch.contribute{ value: 2 ether }(launchId, "", new bytes32[](0));
-
-        address contributor2 = vm.createWallet("Final Contributor").addr;
-
         // To avoid stack too deep errors
         (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
         (PartyERC20 token,, uint96 totalContributions, uint96 targetContribution) =
             abi.decode(res, (PartyERC20, bytes32, uint96, uint96));
 
+        address contributor = vm.createWallet("Contributor").addr;
+        vm.deal(contributor, 2 ether);
+        vm.prank(contributor);
+        launch.contribute{ value: 2 ether }(launchId, address(token), "", new bytes32[](0));
+
+        address contributor2 = vm.createWallet("Final Contributor").addr;
+
+        (, res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (,, totalContributions, targetContribution) = abi.decode(res, (PartyERC20, bytes32, uint96, uint96));
+
         uint96 remainingContribution = targetContribution - totalContributions;
         vm.deal(contributor2, remainingContribution);
 
         vm.prank(contributor2);
-        launch.contribute{ value: remainingContribution }(launchId, "Finalize", new bytes32[](0));
+        launch.contribute{ value: remainingContribution }(launchId, address(token), "Finalize", new bytes32[](0));
 
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
 
