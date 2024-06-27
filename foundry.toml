@@ -15,6 +15,7 @@
   src = "src"
   test = "test"
   fs_permissions = [{ access = "read-write", path = "./out"}]
+libs = ["node_modules", "lib"]
 
 [profile.ci]
   fuzz = { runs = 10_000 }
