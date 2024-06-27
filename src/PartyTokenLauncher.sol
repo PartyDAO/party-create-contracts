@@ -47,7 +47,9 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint32 indexed launchId, IERC20 indexed token, uint256 liquidityPoolTokenId, uint96 ethAmountForPool
     );
     event RecipientTransfer(uint32 indexed launchId, IERC20 indexed token, address indexed recipient, uint96 numTokens);
+    event AllowlistUpdated(uint32 indexed launchId, bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
 
+    error OnlyAdmin(address admin);
     error InvalidUniswapPoolFee();
     error LaunchInvalid();
     error InvalidRecipient();
@@ -265,6 +267,24 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             totalAdditionalFeeRecipientsBps += launchArgs.lockerFeeRecipients[i].bps;
         }
         if (totalAdditionalFeeRecipientsBps > 10_000) revert InvalidBps();
+    }
+
+    function updateAllowlist(uint32 launchId, bytes32 newMerkleRoot) external {
+        Launch storage launch = launches[launchId];
+
+        // Check the launch is active
+        if (_getLaunchLifecycle(launch) != LaunchLifecycle.Active) {
+            revert InvalidLifecycleState(_getLaunchLifecycle(launch), LaunchLifecycle.Active);
+        }
+
+        // Check the caller is the token admin
+        uint256 tokenAdminId = launch.lpInfo.partyTokenAdminId;
+        address tokenAdmin = TOKEN_ADMIN_ERC721.ownerOf(tokenAdminId);
+        if (msg.sender != tokenAdmin) revert OnlyAdmin(tokenAdmin);
+
+        emit AllowlistUpdated(launchId, launch.merkleRoot, newMerkleRoot);
+
+        launch.merkleRoot = newMerkleRoot;
     }
 
     function getLaunchLifecycle(uint32 launchId) public view returns (LaunchLifecycle) {
