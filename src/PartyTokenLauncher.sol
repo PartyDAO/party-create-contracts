@@ -446,8 +446,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
                 tickUpper: MAX_TICK,
                 amount0Desired: amount0,
                 amount1Desired: amount1,
-                amount0Min: 0,
-                amount1Min: 0,
+                amount0Min: amount0 * 9999 / 10_000,
+                amount1Min: amount1 * 9999 / 10_000,
                 recipient: address(this),
                 deadline: block.timestamp
             })
