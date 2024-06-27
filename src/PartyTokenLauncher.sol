@@ -55,6 +55,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     error NoLockerFeeRecipients();
     error TotalSupplyMismatch();
     error TotalSupplyExceedsLimit();
+    error EthTransferFailed();
     error InvalidMerkleProof();
     error InvalidBps();
     error ContributionZero();
@@ -505,11 +506,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     }
 
     /**
-     * @notice Withdraw ETH contributed to a launch.
+     * @notice Withdraw ETH contributed to a launch by `msg.sender`.
      * @param launchId ID of the launch.
+     * @param receiver Address to receive the ETH.
      * @return ethReceived Number of ETH received for the withdrawal.
      */
-    function withdraw(uint32 launchId) external returns (uint96 ethReceived) {
+    function withdraw(uint32 launchId, address receiver) external returns (uint96 ethReceived) {
         Launch memory launch = launches[launchId];
         LaunchLifecycle launchLifecycle = _getLaunchLifecycle(launch);
         if (launchLifecycle != LaunchLifecycle.Active) {
@@ -530,10 +532,11 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         launches[launchId].totalContributions -= ethContributed;
 
         // Transfer withdrawal fee to PartyDAO
-        payable(owner()).call{ value: withdrawalFee, gas: 1e5 }("");
+        owner().call{ value: withdrawalFee, gas: 1e5 }("");
 
         // Transfer ETH to sender
-        payable(msg.sender).call{ value: ethReceived, gas: 1e5 }("");
+        (bool success,) = receiver.call{ value: ethReceived, gas: 1e5 }("");
+        if (!success) revert EthTransferFailed();
 
         emit Withdraw(launchId, msg.sender, tokensReceived, ethContributed, withdrawalFee);
     }
