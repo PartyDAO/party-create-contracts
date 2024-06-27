@@ -1,0 +1,63 @@
+{
+  "contracts": {
+    "PartyTokenAdminERC721": {
+      "deploys": [
+        {
+          "deployedArgs": "0x000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000e63d6f414b40bafca676810ef1abf05ecc8e4590000000000000000000000000000000000000000000000000000000000000004546573740000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000035453540000000000000000000000000000000000000000000000000000000000",
+          "version": "0.5.0",
+          "address": "0x9F0FfCF2Ee9Bd66e623d9FBedAAe0Ddf27d4397a"
+        }
+      ],
+      "constructorArgs": ["nft_name", "nft_symbol", "partyDao"]
+    },
+    "PartyERC20": {
+      "deploys": [
+        {
+          "deployedArgs": "0x0000000000000000000000009f0ffcf2ee9bd66e623d9fbedaae0ddf27d4397a",
+          "version": "0.2.0",
+          "address": "0x411bD32F0683A7fda69C79CB147D79bd7BEaF273"
+        }
+      ],
+      "constructorArgs": ["PartyTokenAdminERC721"]
+    },
+    "PartyLPLocker": {
+      "deploys": [
+        {
+          "deployedArgs": "0x00000000000000000000000003a520b32c04bf3beef7beb72e919cf822ed34f10000000000000000000000009f0ffcf2ee9bd66e623d9fbedaae0ddf27d4397a000000000000000000000000231278edd38b00b07fbd52120cef685b9baebcc1",
+          "version": "0.2.0",
+          "address": "0x1d90f96f5a777A12C9426a9660198eD67F046A16"
+        }
+      ],
+      "constructorArgs": ["partyDao", "positionManager", "PartyTokenAdminERC721", "uncx"]
+    },
+    "PartyTokenLauncher": {
+      "deploys": [
+        {
+          "deployedArgs": "0x0000000000000000000000000e63d6f414b40bafca676810ef1abf05ecc8e4590000000000000000000000009f0ffcf2ee9bd66e623d9fbedaae0ddf27d4397a000000000000000000000000411bd32f0683a7fda69c79cb147d79bd7beaf27300000000000000000000000003a520b32c04bf3beef7beb72e919cf822ed34f100000000000000000000000033128a8fc17869897dce68ed026d694621f6fdfd000000000000000000000000420000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000027100000000000000000000000001d90f96f5a777a12c9426a9660198ed67f046a16",
+          "version": "0.6.0",
+          "address": "0x04fCbd09e4699eff55d0d3a6E2e352e834b70c27"
+        }
+      ],
+      "constructorArgs": [
+        "partyDao",
+        "PartyTokenAdminERC721",
+        "PartyERC20",
+        "positionManager",
+        "uniswapFactory",
+        "weth",
+        "poolFee",
+        "PartyLPLocker"
+      ]
+    }
+  },
+  "constants": {
+    "partyDao": "0x0e63D6f414b40BaFCa676810ef1aBf05ECc8E459",
+    "nft_name": "PartyTokenAdminERC721",
+    "nft_symbol": "PSC721",
+    "positionManager": "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1",
+    "uniswapFactory": "0x33128a8fC17869897dcE68Ed026d694621f6FDfD",
+    "weth": "0x4200000000000000000000000000000000000006",
+    "poolFee": 10000,
+    "uncx": "0x231278eDd38B00B07fBd52120CEf685B9BaEBCC1"
+  }
+}

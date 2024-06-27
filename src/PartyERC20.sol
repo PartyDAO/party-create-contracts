@@ -163,7 +163,7 @@ contract PartyERC20 is ERC20PermitUpgradeable, ERC20VotesUpgradeable, OwnableUpg
      *      change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.1.0";
+        return "0.3.0";
     }
 
     /**
