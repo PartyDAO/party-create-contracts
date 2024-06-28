@@ -23,6 +23,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         string name;
         string image;
         bool launchSuccessful;
+        address token;
     }
 
     /**
@@ -62,12 +63,14 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
      * @param name The name of the new token
      * @param image The image of the new token
      * @param receiver The address that will receive the token
+     * @param token The address of the token managed by the given token ID
      * @return The new token ID
      */
     function mint(
         string calldata name,
         string calldata image,
-        address receiver
+        address receiver,
+        address token
     )
         external
         onlyMinter
@@ -75,7 +78,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     {
         uint256 tokenId = ++totalSupply;
         _mint(receiver, tokenId);
-        tokenMetadatas[tokenId] = TokenMetadata(name, image, false);
+        tokenMetadatas[tokenId] = TokenMetadata(name, image, false, token);
 
         return tokenId;
     }
@@ -109,7 +112,9 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
             LibString.escapeJSON(tokenMetadata.image),
             "\",\"attributes\":[{\"trait_type\":\"Launched\",\"value\":",
             tokenMetadata.launchSuccessful ? "\"True\"" : "\"False\"",
-            "}]}"
+            "},{\"trait_type\":\"Token Address\",\"value\":\"",
+            LibString.toHexString(tokenMetadata.token),
+            "\"}]}"
         );
     }
 
