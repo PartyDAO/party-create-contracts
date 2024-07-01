@@ -471,7 +471,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
     }
 
     function test_VERSION_works() public view {
-        assertEq(launch.VERSION(), "0.7.0");
+        assertEq(launch.VERSION(), "1.0.0");
     }
 
     function test_createLaunch_invalidRecipient() public returns (uint32 launchId) {

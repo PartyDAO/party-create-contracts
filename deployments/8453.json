@@ -72,8 +72,8 @@
   },
   "constants": {
     "partyDao": "0x0e63D6f414b40BaFCa676810ef1aBf05ECc8E459",
-    "nft_name": "PartyTokenAdminERC721",
-    "nft_symbol": "PSC721",
+    "nft_name": "PartySwap Admin NFTs",
+    "nft_symbol": "PSANFT",
     "positionManager": "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1",
     "uniswapFactory": "0x33128a8fC17869897dcE68Ed026d694621f6FDfD",
     "weth": "0x4200000000000000000000000000000000000006",

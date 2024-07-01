@@ -182,7 +182,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
      * change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.3.0";
+        return "1.0.0";
     }
 
     /**
