@@ -78,9 +78,11 @@ async function runDeploy(
     constructorArgs = resolveConstructorArgs(contract, chainId);
   }
 
-  const encodedConstructorArgs = encodeConstructorArgs(contract, constructorArgs);
+  // Escape constructor arguments with spaces
+  const escapedConstructorArgs = constructorArgs.map((arg: string) => `"${arg.replace(/"/g, '\\"')}"`);
+  const encodedConstructorArgs = encodeConstructorArgs(contract, escapedConstructorArgs);
   let newDeploy: Deploy = { deployedArgs: encodedConstructorArgs } as Deploy;
-  newDeploy.version = await getUndeployedContractVersion(contract, constructorArgs, rpcUrl);
+  newDeploy.version = await getUndeployedContractVersion(contract, escapedConstructorArgs, rpcUrl);
 
   validateDeploy(contract, newDeploy, chainId);
 
