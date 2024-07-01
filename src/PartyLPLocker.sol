@@ -154,7 +154,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     }
 
     function getFlatLockFee() external view returns (uint96) {
-        return uint96(UNCX.getFee("LVP").flatFee);
+        return uint96(UNCX.getFee(uncxFeeName).flatFee);
     }
 
     /**
@@ -189,7 +189,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         if (recipient == address(0)) revert InvalidRecipient();
 
         uint256 balance = address(this).balance;
-        if (balance != 0) payable(recipient).transfer(address(this).balance);
+        if (balance != 0) recipient.call{ value: balance, gas: 1e5 }("");
     }
 
     /**
