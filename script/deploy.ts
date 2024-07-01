@@ -79,8 +79,8 @@ async function runDeploy(
   }
 
   // Escape constructor arguments with spaces
-  const escapedConstructorArgs = constructorArgs.map((arg: string) => {
-    if (arg.includes(" ")) {
+  const escapedConstructorArgs = constructorArgs.map((arg) => {
+    if (String(arg).includes(" ")) {
       return `"${arg.replace(/"/g, '\\"')}"`;
     }
     return arg;
