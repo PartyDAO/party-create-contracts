@@ -10,6 +10,8 @@ import { IUNCX } from "./external/IUNCX.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
+    event Locked(uint256 indexed lockId, address indexed locker);
+
     error OnlyPositionManager();
     error InvalidFeeBps();
     error InvalidRecipient();
@@ -116,6 +118,8 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         }
 
         if (token0TotalBps > 10_000 || token1TotalBps > 10_000) revert InvalidFeeBps();
+
+        emit Locked(lockId, address(this));
 
         return IERC721Receiver.onERC721Received.selector;
     }

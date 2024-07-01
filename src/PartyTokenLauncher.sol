@@ -130,6 +130,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
      * @dev IDs start at 1.
      */
     mapping(uint32 => Launch) public launches;
+    mapping(PartyERC20 => uint32) public tokenToLaunchId;
 
     constructor(
         address payable partyDAO,
@@ -194,7 +195,14 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         id = ++numOfLaunches;
 
-        uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(erc20Args.name, erc20Args.image, msg.sender);
+        uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(
+            erc20Args.name,
+            erc20Args.image,
+            msg.sender,
+            Clones.predictDeterministicAddress(
+                address(PARTY_ERC20_LOGIC), keccak256(abi.encodePacked(id, block.chainid, block.timestamp))
+            )
+        );
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
         PartyERC20 token = PartyERC20(
@@ -202,6 +210,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
                 keccak256(abi.encodePacked(id, block.chainid, block.timestamp))
             )
         );
+        tokenToLaunchId[token] = id;
         token.initialize(
             erc20Args.name,
             erc20Args.symbol,
@@ -349,9 +358,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint96 ethContributed = _convertTokensReceivedToETHContributed(
             uint96(launch.token.balanceOf(contributor)), launch.targetContribution, launch.numTokensForDistribution
         );
-        if (ethContributed + amount > launch.maxContributionPerAddress) {
-            revert ContributionsExceedsMaxPerAddress(amount, ethContributed, launch.maxContributionPerAddress);
-        }
 
         uint96 newTotalContributions = launch.totalContributions + amount;
         uint96 excessContribution;
@@ -360,6 +366,11 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             amount -= excessContribution;
 
             newTotalContributions = launch.targetContribution;
+        }
+
+        uint96 maxContributionPerAddress = launch.maxContributionPerAddress;
+        if (ethContributed + amount > maxContributionPerAddress) {
+            revert ContributionsExceedsMaxPerAddress(amount, ethContributed, maxContributionPerAddress);
         }
 
         // Update state

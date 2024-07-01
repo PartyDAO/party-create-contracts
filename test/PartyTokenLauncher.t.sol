@@ -102,6 +102,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         (token,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
 
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 1 ether);
+        assertEq(launch.tokenToLaunchId(token), launchId);
         assertEq(token.balanceOf(creator), expectedTokensReceived);
         assertEq(token.totalSupply(), erc20Args.totalSupply);
         assertEq(totalContributions, 1 ether);
@@ -288,6 +289,25 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         assertEq(finalContributor.balance, 1 ether);
     }
 
+    function test_contribute_maxContributionCheckAfterExcessDeduction() public {
+        (uint32 launchId, PartyERC20 token) = test_createLaunch_works();
+        address creator = vm.createWallet("Creator").addr;
+        vm.deal(creator, 1 ether);
+        address contributor = vm.createWallet("Contributor").addr;
+        vm.deal(contributor, 9 ether);
+
+        // Contribute 1 ether so that 8 ether is required to finalize
+        vm.prank(creator);
+        launch.contribute{ value: 1 ether }(launchId, address(token), "", new bytes32[](0));
+
+        // Contribute 9 ether, which exceeds max contribution per address, but
+        // should be accepted because 1 ether was refunded
+        vm.prank(contributor);
+        launch.contribute{ value: 9 ether }(launchId, address(token), "", new bytes32[](0));
+
+        assertEq(contributor.balance, 1 ether); // 1 ether should be refunded
+    }
+
     function test_contribute_cannotExceedMaxContributionPerAddress() public {
         (uint32 launchId, PartyERC20 token) = test_createLaunch_works();
         address contributor = vm.createWallet("Contributor").addr;
@@ -390,7 +410,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         assertEq(contributor2.balance, 0);
         assertEq(token.balanceOf(address(launch)), 0);
         assertEq(address(launch).balance, 0);
-        (,, bool launchSuccessful) = creatorNFT.tokenMetadatas(launchId);
+        (,, bool launchSuccessful,) = creatorNFT.tokenMetadatas(launchId);
         assertEq(launchSuccessful, true);
     }
 
