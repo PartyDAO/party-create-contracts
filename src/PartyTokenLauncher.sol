@@ -329,9 +329,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint96 ethContributed = _convertTokensReceivedToETHContributed(
             uint96(launch.token.balanceOf(contributor)), launch.targetContribution, launch.numTokensForDistribution
         );
-        if (ethContributed + amount > launch.maxContributionPerAddress) {
-            revert ContributionsExceedsMaxPerAddress(amount, ethContributed, launch.maxContributionPerAddress);
-        }
 
         uint96 newTotalContributions = launch.totalContributions + amount;
         uint96 excessContribution;
@@ -340,6 +337,11 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
             amount -= excessContribution;
 
             newTotalContributions = launch.targetContribution;
+        }
+
+        uint96 maxContributionPerAddress = launch.maxContributionPerAddress;
+        if (ethContributed + amount > maxContributionPerAddress) {
+            revert ContributionsExceedsMaxPerAddress(amount, ethContributed, maxContributionPerAddress);
         }
 
         // Update state
