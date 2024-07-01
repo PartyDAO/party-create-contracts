@@ -73,7 +73,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         vm.assume(additionalFeeRecipient != address(this));
         vm.assume(additionalFeeRecipient != address(0));
 
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this), address(1));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](1);
@@ -96,7 +96,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_onERC721Received_invalidFeeBps_token0() external {
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this), address(1));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](2);
@@ -123,7 +123,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_onERC721Received_invalidFeeBps_token1() external {
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this), address(1));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](2);
@@ -150,7 +150,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     }
 
     function test_onERC721Received_invalidRecipient() external {
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this));
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this), address(1));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](2);
@@ -189,7 +189,7 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         vm.assume(adminNftHolder != lpAddress);
         vm.assume(additionalFeeRecipient != lpAddress);
 
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", adminNftHolder);
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", adminNftHolder, address(1));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
             new PartyLPLocker.AdditionalFeeRecipient[](1);

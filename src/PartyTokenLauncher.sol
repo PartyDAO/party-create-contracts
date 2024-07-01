@@ -192,7 +192,14 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         id = ++numOfLaunches;
 
-        uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(erc20Args.name, erc20Args.image, msg.sender);
+        uint256 tokenAdminId = TOKEN_ADMIN_ERC721.mint(
+            erc20Args.name,
+            erc20Args.image,
+            msg.sender,
+            Clones.predictDeterministicAddress(
+                address(PARTY_ERC20_LOGIC), keccak256(abi.encodePacked(id, block.chainid, block.timestamp))
+            )
+        );
 
         // Deploy new ERC20 token. Mints the total supply upfront to this contract.
         PartyERC20 token = PartyERC20(

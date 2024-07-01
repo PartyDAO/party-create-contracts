@@ -25,7 +25,7 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
         token.initialize("PartyERC20", "PARTY", "MyDescription", 100_000, address(this), address(this), 1);
 
         adminNFTId.setIsMinter(address(this), true);
-        adminNFTId.mint("Admin NFT", "MyImage", address(this));
+        adminNFTId.mint("Admin NFT", "MyImage", address(this), address(1));
     }
 
     function test_cannotReinit() public {

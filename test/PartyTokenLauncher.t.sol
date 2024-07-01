@@ -361,7 +361,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         assertEq(contributor2.balance, 0);
         assertEq(token.balanceOf(address(launch)), 0);
         assertEq(address(launch).balance, 0);
-        (,, bool launchSuccessful) = creatorNFT.tokenMetadatas(launchId);
+        (,, bool launchSuccessful,) = creatorNFT.tokenMetadatas(launchId);
         assertEq(launchSuccessful, true);
     }
 
