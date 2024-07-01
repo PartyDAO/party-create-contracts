@@ -11,6 +11,8 @@ import { MockUNCX, IUNCX } from "./mock/MockUNCX.t.sol";
 import "../src/PartyTokenLauncher.sol";
 
 contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
+    event AllowlistUpdated(uint32 indexed launchId, bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
+
     PartyTokenLauncher launch;
     PartyERC20 partyERC20Logic;
     PartyTokenAdminERC721 creatorNFT;
@@ -191,6 +193,52 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "The first contribution!");
     }
 
+    function test_updateAllowlist_works() public {
+        (uint32 launchId,) = test_createLaunch_works();
+        bytes32 newMerkleRoot = keccak256(abi.encodePacked("newMerkleRoot"));
+
+        address tokenAdmin = creatorNFT.ownerOf(launchId);
+
+        vm.expectEmit(true, true, true, true);
+        emit AllowlistUpdated(launchId, bytes32(0), newMerkleRoot);
+
+        vm.prank(tokenAdmin);
+        launch.updateAllowlist(launchId, newMerkleRoot);
+
+        (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
+        (, bytes32 updatedMerkleRoot) = abi.decode(res, (PartyERC20, bytes32));
+
+        assertEq(updatedMerkleRoot, newMerkleRoot);
+    }
+
+    function test_updateAllowlist_invalidLifecycle() public {
+        (uint32 launchId,) = test_finalize_works();
+        bytes32 newMerkleRoot = keccak256(abi.encodePacked("newMerkleRoot"));
+
+        address tokenAdmin = creatorNFT.ownerOf(launchId);
+
+        vm.prank(tokenAdmin);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PartyTokenLauncher.InvalidLifecycleState.selector,
+                PartyTokenLauncher.LaunchLifecycle.Finalized,
+                PartyTokenLauncher.LaunchLifecycle.Active
+            )
+        );
+        launch.updateAllowlist(launchId, newMerkleRoot);
+    }
+
+    function test_updateAllowlist_onlyAdmin() public {
+        (uint32 launchId,) = test_createLaunch_works();
+        bytes32 newMerkleRoot = keccak256(abi.encodePacked("newMerkleRoot"));
+
+        address nonAdmin = vm.createWallet("NonAdmin").addr;
+
+        vm.prank(nonAdmin);
+        vm.expectRevert(abi.encodeWithSelector(PartyTokenLauncher.OnlyAdmin.selector, vm.createWallet("Creator").addr));
+        launch.updateAllowlist(launchId, newMerkleRoot);
+    }
+
     function test_contribute_works() public {
         (uint32 launchId, PartyERC20 token) = test_createLaunch_works();
         address contributor = vm.createWallet("Contributor").addr;
@@ -325,8 +373,8 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         assertEq(creator.balance, 0);
     }
 
-    function test_finalize_works() public {
-        (uint32 launchId, PartyERC20 token) = test_createLaunch_works();
+    function test_finalize_works() public returns (uint32 launchId, PartyERC20 token) {
+        (launchId, token) = test_createLaunch_works();
 
         // To avoid stack too deep errors
         (, bytes memory res) = address(launch).staticcall(abi.encodeCall(launch.launches, (launchId)));
