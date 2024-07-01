@@ -100,6 +100,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         (token,, totalContributions) = abi.decode(res, (PartyERC20, uint96, uint96));
 
         uint96 expectedTokensReceived = launch.convertETHContributedToTokensReceived(launchId, 1 ether);
+        assertEq(launch.tokenToLaunchId(token), launchId);
         assertEq(token.balanceOf(creator), expectedTokensReceived);
         assertEq(token.totalSupply(), erc20Args.totalSupply);
         assertEq(totalContributions, 1 ether);
