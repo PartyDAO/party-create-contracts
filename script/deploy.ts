@@ -79,7 +79,13 @@ async function runDeploy(
   }
 
   // Escape constructor arguments with spaces
-  const escapedConstructorArgs = constructorArgs.map((arg: string) => `"${arg.replace(/"/g, '\\"')}"`);
+  const escapedConstructorArgs = constructorArgs.map((arg: string) => {
+    if (arg.includes(" ")) {
+      return `"${arg.replace(/"/g, '\\"')}"`;
+    }
+    return arg;
+  });
+
   const encodedConstructorArgs = encodeConstructorArgs(contract, escapedConstructorArgs);
   let newDeploy: Deploy = { deployedArgs: encodedConstructorArgs } as Deploy;
   newDeploy.version = await getUndeployedContractVersion(contract, escapedConstructorArgs, rpcUrl);
