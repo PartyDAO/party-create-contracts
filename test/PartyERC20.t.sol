@@ -104,6 +104,6 @@ contract PartyERC20Test is UseImmutableCreate2Factory {
     }
 
     function test_VERSION() external view {
-        assertEq(token.VERSION(), "0.1.0");
+        assertEq(token.VERSION(), "0.2.0");
     }
 }
