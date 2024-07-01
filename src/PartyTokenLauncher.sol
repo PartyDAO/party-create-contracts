@@ -130,6 +130,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
      * @dev IDs start at 1.
      */
     mapping(uint32 => Launch) public launches;
+    mapping(PartyERC20 => uint32) public tokenToLaunchId;
 
     constructor(
         address payable partyDAO,
@@ -209,6 +210,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
                 keccak256(abi.encodePacked(id, block.chainid, block.timestamp))
             )
         );
+        tokenToLaunchId[token] = id;
         token.initialize(
             erc20Args.name,
             erc20Args.symbol,
