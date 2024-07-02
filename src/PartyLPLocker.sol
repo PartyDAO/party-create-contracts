@@ -10,7 +10,7 @@ import { IUNCX } from "./external/IUNCX.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
-    event Locked(uint256 indexed lockId, address indexed locker);
+    event Locked(uint256 indexed lockId, address indexed locker, IERC20 indexed token);
 
     error OnlyPositionManager();
     error InvalidFeeBps();
@@ -73,7 +73,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     function onERC721Received(address, address, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
 
-        (LPInfo memory lpInfo, uint256 uncxFlatFee) = abi.decode(data, (LPInfo, uint256));
+        (LPInfo memory lpInfo, uint256 uncxFlatFee, IERC20 token) = abi.decode(data, (LPInfo, uint256, IERC20));
 
         // First lock in UNCX to get lockId
         IUNCX.LockParams memory lockParams = IUNCX.LockParams({
@@ -119,7 +119,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
 
         if (token0TotalBps > 10_000 || token1TotalBps > 10_000) revert InvalidFeeBps();
 
-        emit Locked(lockId, address(this));
+        emit Locked(lockId, address(this), token);
 
         return IERC721Receiver.onERC721Received.selector;
     }
