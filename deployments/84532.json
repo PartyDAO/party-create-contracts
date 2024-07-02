@@ -46,6 +46,11 @@
           "deployedArgs": "0x000000000000000000000000f14ae15a9c780e2a5a687ca4f24b1cf0250db2be",
           "version": "0.3.0",
           "address": "0x9a8cF8b3285dA5F11b4d41D942655Ab66e7D99d6"
+        },
+        {
+          "deployedArgs": "0x0000000000000000000000002eafbe14da3b20c578ed1bcba954607cab78c91a",
+          "version": "1.0.0",
+          "address": "0x072dA868826707f0C99C5A04a4718c72b7cB081E"
         }
       ],
       "constructorArgs": ["PartyTokenAdminERC721"]
