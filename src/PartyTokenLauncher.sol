@@ -522,7 +522,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
 
         // Transfer LP to fee locker contract
         POSITION_MANAGER.safeTransferFrom(
-            address(this), address(POSITION_LOCKER), tokenId, abi.encode(launch.lpInfo, flatLockFee)
+            address(this), address(POSITION_LOCKER), tokenId, abi.encode(launch.lpInfo, flatLockFee, launch.token)
         );
 
         emit Finalized(launchId, launch.token, tokenId, amountForPool);
