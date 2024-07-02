@@ -7,6 +7,8 @@ import { IERC4906 } from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 import { LibString } from "solady/src/utils/LibString.sol";
 
 contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
+    using LibString for address;
+
     error OnlyMinter();
     error Unauthorized();
 
@@ -99,8 +101,11 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         _requireOwned(tokenId);
 
         TokenMetadata memory tokenMetadata = tokenMetadatas[tokenId];
-        string memory description =
-            "The holder of this NFT can claim LP fees from a permanently locked LP position for this token.";
+        string memory description = string.concat(
+            "This NFT has metadata admin controls over the ERC20 token at ",
+            tokenMetadata.token.toHexStringChecksummed(),
+            ". The holder of this NFT can change the image metadata of the token on-chain. The holder of this NFT can also claim LP fees from a permanently locked LP position for this token. The holder of this NFT cannot perform any actions that affect token functionality or supply."
+        );
 
         return string.concat(
             "data:application/json;utf8,",
