@@ -1,4 +1,4 @@
-# party-token-protocol Audit Docs
+# party-token-protocol
 
 ## Summary
 
@@ -128,6 +128,7 @@ will be set by our frontend across all ERC20 tokens.
 - Users can only set the reserve percentage of their token. We will default the amount of tokens for contributors and
   the amount for the LP position to be equal.
 - All fee amounts will be set by our frontend and will not be adjustable by users:
-  - finalizationFeeBps: 100
-  - withdrawalFeeBps: 100
-  - lockerFeeRecipients: `[partyDaoMultisigAddress 5000]`
+  - `finalizationFeeBps`: `100`
+  - `withdrawalFeeBps`: `100`
+  - `lockerFeeRecipients`: `[partyDaoMultisigAddress 5000]`
+- There will be a frontend restriction to ensure `targetContribution` is at least 0.055 ETH
