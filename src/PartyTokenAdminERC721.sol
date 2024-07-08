@@ -104,7 +104,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         string memory description = string.concat(
             "This NFT has metadata admin controls over the ERC20 token at ",
             tokenMetadata.token.toHexStringChecksummed(),
-            ". The holder of this NFT can change the image metadata of the token on-chain. The holder of this NFT can also claim LP fees from a permanently locked LP position for this token. The holder of this NFT cannot perform any actions that affect token functionality or supply."
+            ". The holder of this NFT can change the image metadata of the token on-chain. The holder of this NFT can also claim fees from a permanently locked LP position for its token. The holder of this NFT cannot perform any actions that affect token functionality or supply."
         );
 
         return string.concat(
