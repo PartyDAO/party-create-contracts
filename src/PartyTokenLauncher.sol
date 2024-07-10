@@ -589,6 +589,6 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
      *      change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.7.0";
+        return "1.0.0";
     }
 }
