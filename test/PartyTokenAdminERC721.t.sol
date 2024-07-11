@@ -14,34 +14,40 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
     }
 
     function test_tokenURI_validateJSON() external {
-        adminNft.mint("TestToken", "test_image_url", address(this));
+        adminNft.mint("TestToken", "test_image_url", address(this), address(1));
         _lintJSON(adminNft.tokenURI(1));
     }
 
     function test_tokenURI_validateJSONAfterSucceeded() external {
-        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
+        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this), address(1));
         adminNft.setLaunchSucceeded(tokenId);
         _lintJSON(adminNft.tokenURI(tokenId));
     }
 
     event TokenImageSet(uint256 indexed tokenId, string image);
 
+    function test_tokenMetadatas_tokenAddressStored() external {
+        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this), address(5));
+        (,,, address token) = adminNft.tokenMetadatas(tokenId);
+        assertEq(token, address(5));
+    }
+
     function test_setTokenImage_storageReflected() external {
-        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
-        (, string memory image,) = adminNft.tokenMetadatas(tokenId);
+        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this), address(1));
+        (, string memory image,,) = adminNft.tokenMetadatas(tokenId);
         assertEq(image, "test_image_url");
 
         vm.expectEmit(true, true, true, true);
         emit TokenImageSet(tokenId, "new image url");
         adminNft.setTokenImage(tokenId, "new image url");
-        (, image,) = adminNft.tokenMetadatas(tokenId);
+        (, image,,) = adminNft.tokenMetadatas(tokenId);
         assertEq(image, "new image url");
     }
 
     function test_setTokenImage_onlyTokenOwner(address tokenReceiver) external {
         vm.assume(tokenReceiver != address(this));
         vm.assume(tokenReceiver != address(0));
-        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", tokenReceiver);
+        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", tokenReceiver, address(1));
 
         vm.expectRevert(PartyTokenAdminERC721.Unauthorized.selector);
         adminNft.setTokenImage(tokenId, "new image url");
@@ -50,7 +56,7 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
     function test_mint_onlyMinter() external {
         adminNft.setIsMinter(address(this), false);
         vm.expectRevert(PartyTokenAdminERC721.OnlyMinter.selector);
-        adminNft.mint("TestToken", "test_image_url", address(this));
+        adminNft.mint("TestToken", "test_image_url", address(this), address(1));
     }
 
     function test_setIsMinter_setsStorage(address who) external {
@@ -63,7 +69,7 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
     event MetadataUpdate(uint256 _tokenId);
 
     function test_setLaunchSucceeded_eventEmitted() external {
-        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
+        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this), address(1));
 
         vm.expectEmit(true, true, true, true);
         emit MetadataUpdate(tokenId);
@@ -71,7 +77,7 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
     }
 
     function test_setLaunchSucceeded_onlyMinter() external {
-        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this));
+        uint256 tokenId = adminNft.mint("TestToken", "test_image_url", address(this), address(1));
         adminNft.setIsMinter(address(this), false);
         vm.expectRevert(PartyTokenAdminERC721.OnlyMinter.selector);
         adminNft.setLaunchSucceeded(tokenId);
@@ -88,6 +94,6 @@ contract PartyTokenAdminERC721Test is Test, LintJSON {
     }
 
     function test_VERSION() external view {
-        assertEq(adminNft.VERSION(), "0.5.0");
+        assertEq(adminNft.VERSION(), "1.0.0");
     }
 }

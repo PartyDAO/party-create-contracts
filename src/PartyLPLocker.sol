@@ -7,10 +7,14 @@ import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Rec
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IUNCX } from "./external/IUNCX.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract PartyLPLocker is ILocker, IERC721Receiver {
+contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
+    event Locked(uint256 indexed lockId, address indexed locker, IERC20 indexed token);
+
     error OnlyPositionManager();
     error InvalidFeeBps();
+    error InvalidRecipient();
 
     enum FeeType {
         Token0,
@@ -41,8 +45,19 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
     IUNCX public immutable UNCX;
 
     mapping(uint256 => LockStorage) public lockStorages;
+    /// @notice UNCX country code to use when locking in UNCX
+    uint16 public uncxCountryCode;
+    /// @notice UNCX fee name to use when locking in UNCX
+    string public uncxFeeName = "LVP";
 
-    constructor(INonfungiblePositionManager positionManager, IERC721 partyTokenAdmin, IUNCX uncx) {
+    constructor(
+        address owner,
+        INonfungiblePositionManager positionManager,
+        IERC721 partyTokenAdmin,
+        IUNCX uncx
+    )
+        Ownable(owner)
+    {
         POSITION_MANAGER = positionManager;
         PARTY_TOKEN_ADMIN = partyTokenAdmin;
         UNCX = uncx;
@@ -58,7 +73,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
     function onERC721Received(address, address, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
 
-        (LPInfo memory lpInfo, uint256 uncxFlatFee) = abi.decode(data, (LPInfo, uint256));
+        (LPInfo memory lpInfo, uint256 uncxFlatFee, IERC20 token) = abi.decode(data, (LPInfo, uint256, IERC20));
 
         // First lock in UNCX to get lockId
         IUNCX.LockParams memory lockParams = IUNCX.LockParams({
@@ -69,8 +84,8 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
             additionalCollector: address(0),
             collectAddress: lpInfo.additionalFeeRecipients[0].recipient,
             unlockDate: type(uint256).max,
-            countryCode: 0,
-            feeName: "LVP",
+            countryCode: uncxCountryCode,
+            feeName: uncxFeeName,
             r: new bytes[](0)
         });
 
@@ -88,6 +103,9 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
         uint256 token0TotalBps;
         uint256 token1TotalBps;
         for (uint256 i = 0; i < lpInfo.additionalFeeRecipients.length; i++) {
+            // Don't allow sending to address(0)
+            if (lpInfo.additionalFeeRecipients[i].recipient == address(0)) revert InvalidRecipient();
+
             lockStorages[lockId].additionalFeeRecipients.push(lpInfo.additionalFeeRecipients[i]);
 
             FeeType feeType = lpInfo.additionalFeeRecipients[i].feeType;
@@ -100,6 +118,8 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
         }
 
         if (token0TotalBps > 10_000 || token1TotalBps > 10_000) revert InvalidFeeBps();
+
+        emit Locked(lockId, address(this), token);
 
         return IERC721Receiver.onERC721Received.selector;
     }
@@ -130,12 +150,31 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
 
         address remainingReceiver = PARTY_TOKEN_ADMIN.ownerOf(lockStorage.partyTokenAdminId);
 
-        IERC20(lockStorage.token0).transfer(remainingReceiver, IERC20(lockStorage.token0).balanceOf(address(this)));
-        IERC20(lockStorage.token1).transfer(remainingReceiver, IERC20(lockStorage.token1).balanceOf(address(this)));
+        uint256 remainingAmount0 = IERC20(lockStorage.token0).balanceOf(address(this));
+        if (remainingAmount0 > 0) IERC20(lockStorage.token0).transfer(remainingReceiver, remainingAmount0);
+
+        uint256 remainingAmount1 = IERC20(lockStorage.token1).balanceOf(address(this));
+        if (remainingAmount1 > 0) IERC20(lockStorage.token1).transfer(remainingReceiver, remainingAmount1);
     }
 
     function getFlatLockFee() external view returns (uint96) {
-        return uint96(UNCX.getFee("LVP").flatFee);
+        return uint96(UNCX.getFee(uncxFeeName).flatFee);
+    }
+
+    /**
+     * @notice Set the country code to use when locking in UNCX
+     * @param newUncxCountryCode New UNCX country code
+     */
+    function setUncxCountryCode(uint16 newUncxCountryCode) external onlyOwner {
+        uncxCountryCode = newUncxCountryCode;
+    }
+
+    /**
+     * @notice Set the fee name to use when locking in UNCX
+     * @param newUncxFeeName New UNCX fee name
+     */
+    function setUncxFeeName(string memory newUncxFeeName) external onlyOwner {
+        uncxFeeName = newUncxFeeName;
     }
 
     /**
@@ -143,9 +182,22 @@ contract PartyLPLocker is ILocker, IERC721Receiver {
      * change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.2.0";
+        return "1.0.0";
     }
 
-    /// @dev Allow receiving ETH for UNCX flat fee
+    /**
+     * @notice Withdraw excess ETH stored in this contract
+     * @param recipient Address ETH should be sent to
+     */
+    function sweep(address recipient) external onlyOwner {
+        if (recipient == address(0)) revert InvalidRecipient();
+
+        uint256 balance = address(this).balance;
+        if (balance != 0) recipient.call{ value: balance, gas: 1e5 }("");
+    }
+
+    /**
+     * @dev Allow receiving ETH for UNCX flat fee
+     */
     receive() external payable { }
 }

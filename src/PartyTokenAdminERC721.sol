@@ -4,8 +4,11 @@ pragma solidity ^0.8.25;
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC4906 } from "@openzeppelin/contracts/interfaces/IERC4906.sol";
+import { LibString } from "solady/src/utils/LibString.sol";
 
 contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
+    using LibString for address;
+
     error OnlyMinter();
     error Unauthorized();
 
@@ -22,6 +25,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         string name;
         string image;
         bool launchSuccessful;
+        address token;
     }
 
     /**
@@ -61,12 +65,14 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
      * @param name The name of the new token
      * @param image The image of the new token
      * @param receiver The address that will receive the token
+     * @param token The address of the token managed by the given token ID
      * @return The new token ID
      */
     function mint(
         string calldata name,
         string calldata image,
-        address receiver
+        address receiver,
+        address token
     )
         external
         onlyMinter
@@ -74,7 +80,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
     {
         uint256 tokenId = ++totalSupply;
         _mint(receiver, tokenId);
-        tokenMetadatas[tokenId] = TokenMetadata(name, image, false);
+        tokenMetadatas[tokenId] = TokenMetadata(name, image, false, token);
 
         return tokenId;
     }
@@ -95,20 +101,25 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         _requireOwned(tokenId);
 
         TokenMetadata memory tokenMetadata = tokenMetadatas[tokenId];
-        string memory description =
-            "The holder of this NFT can claim LP fees from a permanently locked LP position for this token.";
+        string memory description = string.concat(
+            "This NFT has metadata admin controls over the ERC20 token at ",
+            tokenMetadata.token.toHexStringChecksummed(),
+            ". The holder of this NFT can change the image metadata of the token on-chain. The holder of this NFT can also claim fees from a permanently locked LP position for its token. The holder of this NFT cannot perform any actions that affect token functionality or supply."
+        );
 
         return string.concat(
             "data:application/json;utf8,",
             "{\"name\":\"",
-            tokenMetadata.name,
+            LibString.escapeJSON(tokenMetadata.name),
             "\",\"description\":\"",
             description,
             "\",\"image\":\"",
-            tokenMetadata.image,
-            "\",\"attributes\":[{\"launched\":",
-            tokenMetadata.launchSuccessful ? "true" : "false",
-            "}]}"
+            LibString.escapeJSON(tokenMetadata.image),
+            "\",\"attributes\":[{\"trait_type\":\"Launched\",\"value\":",
+            tokenMetadata.launchSuccessful ? "\"True\"" : "\"False\"",
+            "},{\"trait_type\":\"Token Address\",\"value\":\"",
+            LibString.toHexString(tokenMetadata.token),
+            "\"}]}"
         );
     }
 
@@ -122,6 +133,7 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
         tokenMetadatas[tokenId].image = image;
 
         emit TokenImageSet(tokenId, image);
+        emit MetadataUpdate(tokenId);
     }
 
     /**
@@ -138,6 +150,6 @@ contract PartyTokenAdminERC721 is ERC721, Ownable, IERC4906 {
      * change in ABI.
      */
     function VERSION() external pure returns (string memory) {
-        return "0.5.0";
+        return "1.0.0";
     }
 }
