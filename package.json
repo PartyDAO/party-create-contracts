@@ -9,6 +9,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
+    "@partydao/solidity-deploy": "^1.1.1",
     "@uniswap/v3-core": "Uniswap/v3-core",
     "@uniswap/v3-periphery": "Uniswap/v3-periphery#0.8",
     "ethers": "^6.12.1",
