@@ -50,7 +50,7 @@ jobs:
 
       - name: Run Deploy
         run: |
-          npx ts-node script/deploy.ts deploy ${{ github.event.inputs.contract }} --rpc ${{ env.RPC_URL }} --pk ${{ secrets.private_key }} --explorer-api-key ${{ secrets.BASESCAN_API_KEY }}
+          npx solidity-deploy ${{ github.event.inputs.contract }} --rpc ${{ env.RPC_URL }} --pk ${{ secrets.private_key }} --explorer-api-key ${{ secrets.BASESCAN_API_KEY }}
         env:
           NETWORK: ${{ github.event.inputs.network }}
           CONTRACT: ${{ github.event.inputs.contract }}
