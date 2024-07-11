@@ -2,11 +2,8 @@
 pragma solidity ^0.8.25;
 
 import "forge-std/src/Test.sol";
-import { WETH9 } from "./mock/WETH.t.sol";
-import { MockUniswapV3Factory } from "./mock/MockUniswapV3Factory.t.sol";
-import { MockUniswapNonfungiblePositionManager } from "./mock/MockUniswapNonfungiblePositionManager.t.sol";
 import { MockUniswapV3Deployer } from "./mock/MockUniswapV3Deployer.t.sol";
-import { MockUNCX, IUNCX } from "./mock/MockUNCX.t.sol";
+import { IWETH } from "../src/external/IWETH.sol";
 
 import "../src/PartyTokenLauncher.sol";
 
@@ -20,8 +17,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
     PartyLPLocker positionLocker;
     INonfungiblePositionManager public positionManager;
     IUniswapV3Factory public uniswapFactory;
-    IUNCX public uncx;
-    address payable public weth;
+    IWETH public weth;
     address public launchToken;
     uint24 public poolFee;
 
@@ -32,18 +28,17 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
     function setUp() public {
         MockUniswapV3Deployer.UniswapV3Deployment memory deploy = _deployUniswapV3();
 
-        weth = deploy.WETH;
+        weth = IWETH(address(deploy.WETH));
         uniswapFactory = IUniswapV3Factory(deploy.FACTORY);
         positionManager = INonfungiblePositionManager(deploy.POSITION_MANAGER);
-        uncx = new MockUNCX();
         poolFee = 3000;
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PTA721", address(this));
-        positionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, uncx);
+        positionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, weth);
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
-            partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, weth, poolFee, positionLocker
+            partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, payable(address(weth)), poolFee, positionLocker
         );
         creatorNFT.setIsMinter(address(launch), true);
     }
@@ -53,7 +48,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         assertEq(address(launch.TOKEN_ADMIN_ERC721()), address(creatorNFT));
         assertEq(address(launch.POSITION_MANAGER()), address(positionManager));
         assertEq(address(launch.UNISWAP_FACTORY()), address(uniswapFactory));
-        assertEq(address(launch.WETH()), weth);
+        assertEq(address(launch.WETH()), address(weth));
         assertEq(launch.POOL_FEE(), poolFee);
         assertEq(address(launch.POSITION_LOCKER()), address(positionLocker));
     }
@@ -330,7 +325,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
 
         vm.prank(contributor);
         vm.expectRevert(PartyTokenLauncher.LaunchInvalid.selector);
-        launch.contribute{ value: 5 ether }(launchId, address(uncx), "", new bytes32[](0));
+        launch.contribute{ value: 5 ether }(launchId, address(weth), "", new bytes32[](0));
     }
 
     function test_withdraw_works() public {
@@ -464,7 +459,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
             partyERC20Logic,
             positionManager,
             uniswapFactory,
-            weth,
+            payable(address(weth)),
             type(uint24).max,
             positionLocker
         );
