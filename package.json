@@ -1,6 +1,5 @@
 {
-  "name": "@PartyDAO/party-token-protocol",
-  "description": "",
+  "name": "@PartyDAO/party-create-contracts",
   "version": "1.0.0",
   "author": {
     "name": "PartyDAO",
