@@ -35,7 +35,7 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PTA721", address(this));
-        positionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, weth);
+        positionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT);
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
             partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, payable(address(weth)), poolFee, positionLocker

@@ -25,7 +25,7 @@ contract PartyTokenLauncherForkTest is Test {
         poolFee = 3000;
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
-        lpLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, weth);
+        lpLocker = new PartyLPLocker(address(this), positionManager, creatorNFT);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(

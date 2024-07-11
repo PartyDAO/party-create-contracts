@@ -7,7 +7,6 @@ import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Rec
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { IWETH } from "./external/IWETH.sol";
 
 contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     event Locked(uint256 indexed tokenId, IERC20 indexed token, uint256 indexed partyTokenAdminId, AdditionalFeeRecipient[] additionalFeeRecipients);
@@ -43,26 +42,32 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
 
     INonfungiblePositionManager public immutable POSITION_MANAGER;
     IERC721 public immutable PARTY_TOKEN_ADMIN;
-    IWETH public immutable WETH;
 
+    /**
+     * @notice Get details about a lock by UNI-V3 LP NFT tokenId
+     * @return token0 Address of token0 in the UNI-V3 LP
+     * @return token1 Address of token1 in the UNI-V3 LP
+     * @return partyTokenAdminId ID of the Party token admin NFT
+     */
     mapping(uint256 tokenId => LockStorage) public lockStorages;
 
     constructor(
         address owner,
         INonfungiblePositionManager positionManager,
-        IERC721 partyTokenAdmin,
-        IWETH weth
+        IERC721 partyTokenAdmin
     )
         Ownable(owner)
     {
         POSITION_MANAGER = positionManager;
         PARTY_TOKEN_ADMIN = partyTokenAdmin;
-        WETH = weth;
     }
 
     /**
      * @notice Send a UNI-V3 LP NFT to this contract via `safeTransferFrom` to lock it and collect fees. The data must be encoded as an LPInfo struct.
      * @dev `additionalFeeRecipients` should contain at least one additional fee recipient.
+     * @param tokenId UNI-V3 LP NFT token ID
+     * @param data Data encoded as an LPInfo struct
+     * @return bytes4 Magic value to indicate the success of the call
      */
     function onERC721Received(address, address, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
@@ -149,20 +154,32 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         emit Collected(tokenId, amount0, amount1, lockStorage.additionalFeeRecipients);
     }
 
+    /**
+     * @notice Get the flat fee to lock a UNI-V3 LP NFT, if any.
+     */
     function getFlatLockFee() external pure returns (uint96) {
         return 0;
     }
 
     /**
-     * @dev Returns the version of the contract. Minor versions indicate change in logic. Major version indicates
-     * change in ABI.
+     * @notice Returns the version of the contract. Minor versions indicate
+     *         change in logic. Major version indicates change in ABI.
      */
     function VERSION() external pure returns (string memory) {
         return "1.0.1";
     }
 
+    /// @notice Get the additional fee recipients for a given UNI-V3 LP NFT.
+    /// @param tokenId UNI-V3 LP NFT token ID
+    /// @return additionalFeeRecipients Additional fee recipients for collected
+    ///                                 fees besides the owner of the Party token
+    ///                                 admin NFT token ID
+    function getAdditionalFeeRecipients(uint256 tokenId) external view returns (AdditionalFeeRecipient[] memory) {
+        return lockStorages[tokenId].additionalFeeRecipients;
+    }
+
     /**
-     * @notice Withdraw excess ETH stored in this contract
+     * @notice Withdraw excess ETH stored in this contract.
      * @param recipient Address ETH should be sent to
      */
     function sweep(address recipient) external onlyOwner {
@@ -171,6 +188,4 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         uint256 balance = address(this).balance;
         if (balance != 0) recipient.call{ value: balance, gas: 1e5 }("");
     }
-
-    receive() external payable { }
 }
