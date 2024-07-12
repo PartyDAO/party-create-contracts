@@ -64,11 +64,16 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     }
 
     /**
-     * @notice Send a UNI-V3 LP NFT to this contract via `safeTransferFrom` to lock it and collect fees. The data must
-     * be encoded as an LPInfo struct.
+     * @notice Send a UNI-V3 LP NFT to this contract via `safeTransferFrom` to lock it and collect fees.
+     * @dev The `data` parameter must be ABI-encoded as (LPInfo, uint256, IERC20) where:
+     *      - LPInfo is a struct containing:
+     *        - partyTokenAdminId: uint256
+     *        - additionalFeeRecipients: AdditionalFeeRecipient[]
+     *      - uint256 represents a flat fee (currently unused)
+     *      - IERC20 is the token address associated with the UNI-V3 LP
      * @dev `additionalFeeRecipients` should contain at least one additional fee recipient.
      * @param tokenId UNI-V3 LP NFT token ID
-     * @param data Data encoded as an LPInfo struct
+     * @param data Encoded data as described above
      * @return bytes4 Magic value to indicate the success of the call
      */
     function onERC721Received(address, address, uint256 tokenId, bytes calldata data) external returns (bytes4) {
