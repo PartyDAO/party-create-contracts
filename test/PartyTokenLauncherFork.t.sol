@@ -5,32 +5,38 @@ import "forge-std/src/Test.sol";
 
 import "../src/PartyTokenLauncher.sol";
 import "../src/PartyLPLocker.sol";
+import { IWETH } from "../src/external/IWETH.sol";
 
 contract PartyTokenLauncherForkTest is Test {
     PartyTokenLauncher launch;
     PartyERC20 partyERC20Logic;
     PartyTokenAdminERC721 creatorNFT;
     PartyLPLocker lpLocker;
-    IUNCX uncx;
     address payable partyDAO;
     INonfungiblePositionManager public positionManager;
     IUniswapV3Factory public uniswapFactory;
-    address payable public weth;
+    IWETH public weth;
     uint24 public poolFee;
 
     function setUp() public {
         positionManager = INonfungiblePositionManager(0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1);
         uniswapFactory = IUniswapV3Factory(0x33128a8fC17869897dcE68Ed026d694621f6FDfD);
-        weth = payable(positionManager.WETH9());
+        weth = IWETH(positionManager.WETH9());
         poolFee = 3000;
 
         partyDAO = payable(vm.createWallet("Party DAO").addr);
-        uncx = IUNCX(0x231278eDd38B00B07fBd52120CEf685B9BaEBCC1);
-        lpLocker = new PartyLPLocker(address(this), positionManager, creatorNFT, uncx);
+        lpLocker = new PartyLPLocker(address(this), positionManager, creatorNFT);
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
-            partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, weth, poolFee, lpLocker
+            partyDAO,
+            creatorNFT,
+            partyERC20Logic,
+            positionManager,
+            uniswapFactory,
+            payable(address(weth)),
+            poolFee,
+            lpLocker
         );
         creatorNFT.setIsMinter(address(launch), true);
     }
@@ -142,17 +148,12 @@ contract PartyTokenLauncherForkTest is Test {
         }
         {
             uint96 finalizationFee = launchArgs.finalizationFeeBps * launchArgs.targetContribution / 1e4;
-            uint256 tokenUncxFee = uncx.getFee("LVP").lpFee * launchArgs.numTokensForLP / 1e4;
-            uint256 wethUncxFee = uncx.getFee("LVP").lpFee * launchArgs.targetContribution / 1e4;
             expectedPartyDAOBalance += finalizationFee;
-            address pool = uniswapFactory.getPool(address(token), weth, poolFee);
-            assertApproxEqRel(token.balanceOf(pool), launchArgs.numTokensForLP - tokenUncxFee, 0.001e18); // 0.01%
+            address pool = uniswapFactory.getPool(address(token), address(weth), poolFee);
+            assertApproxEqRel(token.balanceOf(pool), launchArgs.numTokensForLP, 0.001e18); // 0.01%
                 // tolerance
-            assertApproxEqRel(
-                IERC20(weth).balanceOf(pool),
-                launchArgs.targetContribution - finalizationFee - wethUncxFee - uncx.getFee("LVP").flatFee,
-                0.001e18
-            ); // 0.01% tolerance
+            assertApproxEqRel(weth.balanceOf(pool), launchArgs.targetContribution - finalizationFee, 0.001e18); // 0.01%
+                // tolerance
         }
         {
             uint96 expectedTokensReceived =

@@ -88,15 +88,6 @@ The `PartyLPLocker` contract locks Uniswap V3 LP NFTs and manages fee collection
 - The owner of the Admin NFT receives 100% of the fees earned in their ERC-20 token.
 - The owner of the Admin NFT splits the ETH fees with PartyDAO based on a percentage set when the crowdfund was created.
 
-### UNCX
-
-- The PartyLPLocker uses UNCX for liquidity lockers. We are doing this so that services like DEX Screener will feature a
-  locked liquidity indicator for all tokens created using our platform.
-- UNCX has three tiers, and we use the LVP fee option for 0.3% liquidity and 3.5% collect fee. We preferred to go with a
-  higher fee upon locking with UNCX but less on collected fees.
-- For Base specifically, UNCX takes a flat fee in ETH upon locking with their Uniswap V3 locker. Currently, this is 0.03
-  ETH.
-
 ## PartyERC20
 
 The `PartyERC20` is a custom ERC20 token used by the `PartyTokenLauncher` for launches.
