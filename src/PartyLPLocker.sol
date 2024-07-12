@@ -171,11 +171,13 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         return "1.0.1";
     }
 
-    /// @notice Get the additional fee recipients for a given UNI-V3 LP NFT.
-    /// @param tokenId UNI-V3 LP NFT token ID
-    /// @return additionalFeeRecipients Additional fee recipients for collected
-    ///                                 fees besides the owner of the Party token
-    ///                                 admin NFT token ID
+    /**
+     * @notice Get the additional fee recipients for a given UNI-V3 LP NFT.
+     * @param tokenId UNI-V3 LP NFT token ID
+     * @return additionalFeeRecipients Additional fee recipients for collected
+     *                                 fees besides the owner of the Party token
+     *                                 admin NFT token ID
+     */
     function getAdditionalFeeRecipients(uint256 tokenId) external view returns (AdditionalFeeRecipient[] memory) {
         return lockStorages[tokenId].additionalFeeRecipients;
     }
