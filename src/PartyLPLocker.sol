@@ -9,8 +9,15 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
-    event Locked(uint256 indexed tokenId, IERC20 indexed token, uint256 indexed partyTokenAdminId, AdditionalFeeRecipient[] additionalFeeRecipients);
-    event Collected(uint256 indexed tokenId, uint256 amount0, uint256 amount1, AdditionalFeeRecipient[] additionalFeeRecipients);
+    event Locked(
+        uint256 indexed tokenId,
+        IERC20 indexed token,
+        uint256 indexed partyTokenAdminId,
+        AdditionalFeeRecipient[] additionalFeeRecipients
+    );
+    event Collected(
+        uint256 indexed tokenId, uint256 amount0, uint256 amount1, AdditionalFeeRecipient[] additionalFeeRecipients
+    );
 
     error OnlyPositionManager();
     error InvalidFeeBps();
@@ -51,19 +58,14 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
      */
     mapping(uint256 tokenId => LockStorage) public lockStorages;
 
-    constructor(
-        address owner,
-        INonfungiblePositionManager positionManager,
-        IERC721 partyTokenAdmin
-    )
-        Ownable(owner)
-    {
+    constructor(address owner, INonfungiblePositionManager positionManager, IERC721 partyTokenAdmin) Ownable(owner) {
         POSITION_MANAGER = positionManager;
         PARTY_TOKEN_ADMIN = partyTokenAdmin;
     }
 
     /**
-     * @notice Send a UNI-V3 LP NFT to this contract via `safeTransferFrom` to lock it and collect fees. The data must be encoded as an LPInfo struct.
+     * @notice Send a UNI-V3 LP NFT to this contract via `safeTransferFrom` to lock it and collect fees. The data must
+     * be encoded as an LPInfo struct.
      * @dev `additionalFeeRecipients` should contain at least one additional fee recipient.
      * @param tokenId UNI-V3 LP NFT token ID
      * @param data Data encoded as an LPInfo struct
@@ -72,7 +74,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     function onERC721Received(address, address, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
 
-        (LPInfo memory lpInfo, , IERC20 token) = abi.decode(data, (LPInfo, uint256, IERC20));
+        (LPInfo memory lpInfo,, IERC20 token) = abi.decode(data, (LPInfo, uint256, IERC20));
 
         {
             (, bytes memory res) =

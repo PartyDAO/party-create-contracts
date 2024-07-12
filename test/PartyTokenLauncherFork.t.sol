@@ -29,7 +29,14 @@ contract PartyTokenLauncherForkTest is Test {
         creatorNFT = new PartyTokenAdminERC721("PartyTokenAdminERC721", "PT721", address(this));
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
-            partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, payable(address(weth)), poolFee, lpLocker
+            partyDAO,
+            creatorNFT,
+            partyERC20Logic,
+            positionManager,
+            uniswapFactory,
+            payable(address(weth)),
+            poolFee,
+            lpLocker
         );
         creatorNFT.setIsMinter(address(launch), true);
     }
@@ -145,11 +152,8 @@ contract PartyTokenLauncherForkTest is Test {
             address pool = uniswapFactory.getPool(address(token), address(weth), poolFee);
             assertApproxEqRel(token.balanceOf(pool), launchArgs.numTokensForLP, 0.001e18); // 0.01%
                 // tolerance
-            assertApproxEqRel(
-                weth.balanceOf(pool),
-                launchArgs.targetContribution - finalizationFee,
-                0.001e18
-            ); // 0.01% tolerance
+            assertApproxEqRel(weth.balanceOf(pool), launchArgs.targetContribution - finalizationFee, 0.001e18); // 0.01%
+                // tolerance
         }
         {
             uint96 expectedTokensReceived =

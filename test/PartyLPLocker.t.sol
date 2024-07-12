@@ -12,8 +12,18 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
-    event Locked(uint256 indexed tokenId, IERC20 indexed token, uint256 indexed partyTokenAdminId, PartyLPLocker.AdditionalFeeRecipient[] additionalFeeRecipients);
-    event Collected(uint256 indexed tokenId, uint256 amount0, uint256 amount1, PartyLPLocker.AdditionalFeeRecipient[] additionalFeeRecipients);
+    event Locked(
+        uint256 indexed tokenId,
+        IERC20 indexed token,
+        uint256 indexed partyTokenAdminId,
+        PartyLPLocker.AdditionalFeeRecipient[] additionalFeeRecipients
+    );
+    event Collected(
+        uint256 indexed tokenId,
+        uint256 amount0,
+        uint256 amount1,
+        PartyLPLocker.AdditionalFeeRecipient[] additionalFeeRecipients
+    );
 
     MockUniswapV3Deployer.UniswapV3Deployment uniswapV3Deployment;
     PartyTokenAdminERC721 adminToken;
@@ -204,26 +214,11 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         assertEq(collectedAmount0, 0.01 ether);
         assertEq(collectedAmount1, 0.01 ether);
 
-        assertEq(
-            token0.balanceOf(feeRecipient1),
-            0.002 ether
-        );
-        assertEq(
-            token1.balanceOf(feeRecipient1),
-            0.002 ether
-        );
-        assertEq(
-            token0.balanceOf(feeRecipient2),
-            0.007 ether
-        );
-        assertEq(
-            token0.balanceOf(adminNftHolder),
-            0.001 ether
-        );
-        assertEq(
-            token1.balanceOf(adminNftHolder),
-            0.008 ether
-        );
+        assertEq(token0.balanceOf(feeRecipient1), 0.002 ether);
+        assertEq(token1.balanceOf(feeRecipient1), 0.002 ether);
+        assertEq(token0.balanceOf(feeRecipient2), 0.007 ether);
+        assertEq(token0.balanceOf(adminNftHolder), 0.001 ether);
+        assertEq(token1.balanceOf(adminNftHolder), 0.008 ether);
     }
 
     function test_withdrawEth_nonNull() external {
@@ -270,7 +265,10 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
                 percentageBps: 1000,
                 feeType: PartyLPLocker.FeeType.Token1
             });
-            lpInfo = PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
+            lpInfo = PartyLPLocker.LPInfo({
+                partyTokenAdminId: adminTokenId,
+                additionalFeeRecipients: additionalFeeRecipients
+            });
         }
 
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(

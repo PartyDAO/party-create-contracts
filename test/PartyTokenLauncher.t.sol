@@ -38,7 +38,14 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         positionLocker = new PartyLPLocker(address(this), positionManager, creatorNFT);
         partyERC20Logic = new PartyERC20(creatorNFT);
         launch = new PartyTokenLauncher(
-            partyDAO, creatorNFT, partyERC20Logic, positionManager, uniswapFactory, payable(address(weth)), poolFee, positionLocker
+            partyDAO,
+            creatorNFT,
+            partyERC20Logic,
+            positionManager,
+            uniswapFactory,
+            payable(address(weth)),
+            poolFee,
+            positionLocker
         );
         creatorNFT.setIsMinter(address(launch), true);
     }
