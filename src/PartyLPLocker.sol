@@ -71,7 +71,6 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
      *        - additionalFeeRecipients: AdditionalFeeRecipient[]
      *      - uint256 represents a flat fee (currently unused)
      *      - IERC20 is the token address associated with the UNI-V3 LP
-     * @dev `additionalFeeRecipients` should contain at least one additional fee recipient.
      * @param tokenId UNI-V3 LP NFT token ID
      * @param data Encoded data as described above
      * @return bytes4 Magic value to indicate the success of the call
