@@ -59,7 +59,13 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
      */
     mapping(uint256 tokenId => LockStorage) public lockStorages;
 
-    constructor(address owner, INonfungiblePositionManager positionManager, PartyTokenAdminERC721 partyTokenAdmin) Ownable(owner) {
+    constructor(
+        address owner,
+        INonfungiblePositionManager positionManager,
+        PartyTokenAdminERC721 partyTokenAdmin
+    )
+        Ownable(owner)
+    {
         POSITION_MANAGER = positionManager;
         PARTY_TOKEN_ADMIN = partyTokenAdmin;
     }
