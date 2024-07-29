@@ -4,9 +4,9 @@ pragma solidity ^0.8.25;
 import { ILocker } from "./interfaces/ILocker.sol";
 import { INonfungiblePositionManager } from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { PartyTokenAdminERC721 } from "./PartyTokenAdminERC721.sol";
 
 contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     event Locked(
@@ -22,6 +22,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     error OnlyPositionManager();
     error InvalidFeeBps();
     error InvalidRecipient();
+    error InvalidAdminId();
 
     enum FeeType {
         Token0,
@@ -48,7 +49,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     }
 
     INonfungiblePositionManager public immutable POSITION_MANAGER;
-    IERC721 public immutable PARTY_TOKEN_ADMIN;
+    PartyTokenAdminERC721 public immutable PARTY_TOKEN_ADMIN;
 
     /**
      * @notice Get details about a lock by UNI-V3 LP NFT tokenId
@@ -58,7 +59,13 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
      */
     mapping(uint256 tokenId => LockStorage) public lockStorages;
 
-    constructor(address owner, INonfungiblePositionManager positionManager, IERC721 partyTokenAdmin) Ownable(owner) {
+    constructor(
+        address owner,
+        INonfungiblePositionManager positionManager,
+        PartyTokenAdminERC721 partyTokenAdmin
+    )
+        Ownable(owner)
+    {
         POSITION_MANAGER = positionManager;
         PARTY_TOKEN_ADMIN = partyTokenAdmin;
     }
@@ -80,6 +87,10 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
 
         (LPInfo memory lpInfo,, IERC20 token) = abi.decode(data, (LPInfo, uint256, IERC20));
+
+        if (lpInfo.partyTokenAdminId == 0 || lpInfo.partyTokenAdminId > PARTY_TOKEN_ADMIN.totalSupply()) {
+            revert InvalidAdminId();
+        }
 
         {
             (, bytes memory res) =
