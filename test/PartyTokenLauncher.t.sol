@@ -151,6 +151,39 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         assertTrue(launch.getLaunchLifecycle(launchId) == PartyTokenLauncher.LaunchLifecycle.Finalized);
     }
 
+    function test_createLaunch_maxAdditionalFeeRecipientsExceeded() external {
+        address creator = vm.createWallet("Creator").addr;
+        vm.deal(creator, 1 ether);
+
+        PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
+            new PartyTokenLauncher.LockerFeeRecipient[](256);
+
+        PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
+            name: "NewToken",
+            symbol: "NT",
+            image: "image_url",
+            description: "New Token Description",
+            totalSupply: 1_000_000 ether
+        });
+
+        PartyTokenLauncher.LaunchArgs memory launchArgs = PartyTokenLauncher.LaunchArgs({
+            numTokensForLP: 500_000 ether,
+            numTokensForDistribution: 300_000 ether,
+            numTokensForRecipient: 200_000 ether,
+            targetContribution: 10 ether,
+            maxContributionPerAddress: 10 ether,
+            merkleRoot: bytes32(0),
+            recipient: vm.createWallet("Recipient").addr,
+            finalizationFeeBps: 100,
+            withdrawalFeeBps: 100,
+            lockerFeeRecipients: lockerFeeRecipients
+        });
+
+        vm.prank(creator);
+        vm.expectRevert(abi.encodeWithSelector(PartyTokenLauncher.MaxAdditionalFeeRecipientsExceeded.selector, 256, 255));
+        launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
+    }
+
     function test_createLaunch_invalidFee() external {
         address creator = vm.createWallet("Creator").addr;
         address recipient = vm.createWallet("Recipient").addr;

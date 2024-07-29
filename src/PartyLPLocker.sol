@@ -22,6 +22,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
     error OnlyPositionManager();
     error InvalidFeeBps();
     error InvalidRecipient();
+    error MaxAdditionalFeeRecipientsExceeded(uint256 actual, uint256 max);
 
     enum FeeType {
         Token0,
@@ -46,6 +47,8 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         uint256 partyTokenAdminId;
         AdditionalFeeRecipient[] additionalFeeRecipients;
     }
+
+    uint8 public constant MAX_ADDITIONAL_FEE_RECIPIENTS = 255;
 
     INonfungiblePositionManager public immutable POSITION_MANAGER;
     IERC721 public immutable PARTY_TOKEN_ADMIN;
@@ -80,6 +83,12 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         if (msg.sender != address(POSITION_MANAGER)) revert OnlyPositionManager();
 
         (LPInfo memory lpInfo,, IERC20 token) = abi.decode(data, (LPInfo, uint256, IERC20));
+
+        if (lpInfo.additionalFeeRecipients.length > MAX_ADDITIONAL_FEE_RECIPIENTS) {
+            revert MaxAdditionalFeeRecipientsExceeded(
+                lpInfo.additionalFeeRecipients.length, MAX_ADDITIONAL_FEE_RECIPIENTS
+            );
+        }
 
         {
             (, bytes memory res) =

@@ -60,6 +60,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
     error InvalidMerkleProof();
     error InvalidBps();
     error ContributionZero();
+    error MaxAdditionalFeeRecipientsExceeded(uint256 actual, uint256 max);
     error ContributionsExceedsMaxPerAddress(
         uint96 newContribution, uint96 existingContributionsByAddress, uint96 maxContributionPerAddress
     );
@@ -112,6 +113,8 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         uint16 withdrawalFeeBps;
         PartyLPLocker.LPInfo lpInfo;
     }
+
+    uint8 public constant MAX_ADDITIONAL_FEE_RECIPIENTS = 255;
 
     PartyTokenAdminERC721 public immutable TOKEN_ADMIN_ERC721;
     PartyERC20 public immutable PARTY_ERC20_LOGIC;
@@ -261,6 +264,12 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         launch.finalizationFeeBps = launchArgs.finalizationFeeBps;
         launch.withdrawalFeeBps = launchArgs.withdrawalFeeBps;
         launch.lpInfo.partyTokenAdminId = tokenAdminId;
+
+        if (launchArgs.lockerFeeRecipients.length > MAX_ADDITIONAL_FEE_RECIPIENTS) {
+            revert MaxAdditionalFeeRecipientsExceeded(
+                launchArgs.lockerFeeRecipients.length, MAX_ADDITIONAL_FEE_RECIPIENTS
+            );
+        }
 
         uint16 totalAdditionalFeeRecipientsBps = 0;
         for (uint256 i = 0; i < launchArgs.lockerFeeRecipients.length; i++) {

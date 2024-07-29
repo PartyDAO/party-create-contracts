@@ -178,6 +178,20 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         );
     }
 
+    function test_onERC721Received_maxAdditionalFeeRecipientsExceeded() external {
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this), address(1));
+
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            new PartyLPLocker.AdditionalFeeRecipient[](256);
+        PartyLPLocker.LPInfo memory lpInfo =
+            PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
+
+        vm.expectRevert(abi.encodeWithSelector(PartyLPLocker.MaxAdditionalFeeRecipientsExceeded.selector, 256, 255));
+        INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, 0)
+        );
+    }
+
     function test_onERC721Received_notPositionManager() external {
         vm.expectRevert(PartyLPLocker.OnlyPositionManager.selector);
         locker.onERC721Received(address(0), address(0), 0, "");
