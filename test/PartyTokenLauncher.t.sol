@@ -180,7 +180,9 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         });
 
         vm.prank(creator);
-        vm.expectRevert(abi.encodeWithSelector(PartyTokenLauncher.MaxAdditionalFeeRecipientsExceeded.selector, 256, 255));
+        vm.expectRevert(
+            abi.encodeWithSelector(PartyTokenLauncher.MaxAdditionalFeeRecipientsExceeded.selector, 256, 255)
+        );
         launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
     }
 
