@@ -155,8 +155,9 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
         address creator = vm.createWallet("Creator").addr;
         vm.deal(creator, 1 ether);
 
+        uint8 maxFeeRecipients = launch.MAX_ADDITIONAL_FEE_RECIPIENTS();
         PartyTokenLauncher.LockerFeeRecipient[] memory lockerFeeRecipients =
-            new PartyTokenLauncher.LockerFeeRecipient[](256);
+            new PartyTokenLauncher.LockerFeeRecipient[](maxFeeRecipients + 1);
 
         PartyTokenLauncher.ERC20Args memory erc20Args = PartyTokenLauncher.ERC20Args({
             name: "NewToken",
@@ -181,7 +182,9 @@ contract PartyTokenLauncherTest is Test, MockUniswapV3Deployer {
 
         vm.prank(creator);
         vm.expectRevert(
-            abi.encodeWithSelector(PartyTokenLauncher.MaxAdditionalFeeRecipientsExceeded.selector, 256, 255)
+            abi.encodeWithSelector(
+                PartyTokenLauncher.MaxAdditionalFeeRecipientsExceeded.selector, maxFeeRecipients + 1, maxFeeRecipients
+            )
         );
         launch.createLaunch{ value: 1 ether }(erc20Args, launchArgs, "");
     }

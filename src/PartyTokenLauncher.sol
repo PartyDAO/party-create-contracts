@@ -114,7 +114,7 @@ contract PartyTokenLauncher is Ownable, IERC721Receiver {
         PartyLPLocker.LPInfo lpInfo;
     }
 
-    uint8 public constant MAX_ADDITIONAL_FEE_RECIPIENTS = 255;
+    uint8 public constant MAX_ADDITIONAL_FEE_RECIPIENTS = 25;
 
     PartyTokenAdminERC721 public immutable TOKEN_ADMIN_ERC721;
     PartyERC20 public immutable PARTY_ERC20_LOGIC;

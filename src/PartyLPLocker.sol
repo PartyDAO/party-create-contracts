@@ -48,7 +48,7 @@ contract PartyLPLocker is ILocker, IERC721Receiver, Ownable {
         AdditionalFeeRecipient[] additionalFeeRecipients;
     }
 
-    uint8 public constant MAX_ADDITIONAL_FEE_RECIPIENTS = 255;
+    uint8 public constant MAX_ADDITIONAL_FEE_RECIPIENTS = 25;
 
     INonfungiblePositionManager public immutable POSITION_MANAGER;
     IERC721 public immutable PARTY_TOKEN_ADMIN;

@@ -181,12 +181,17 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
     function test_onERC721Received_maxAdditionalFeeRecipientsExceeded() external {
         uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this), address(1));
 
+        uint8 maxFeeRecipients = locker.MAX_ADDITIONAL_FEE_RECIPIENTS();
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
-            new PartyLPLocker.AdditionalFeeRecipient[](256);
+            new PartyLPLocker.AdditionalFeeRecipient[](maxFeeRecipients + 1);
         PartyLPLocker.LPInfo memory lpInfo =
             PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
-        vm.expectRevert(abi.encodeWithSelector(PartyLPLocker.MaxAdditionalFeeRecipientsExceeded.selector, 256, 255));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PartyLPLocker.MaxAdditionalFeeRecipientsExceeded.selector, maxFeeRecipients + 1, maxFeeRecipients
+            )
+        );
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
             address(this), address(locker), lpTokenId, abi.encode(lpInfo, 0)
         );
