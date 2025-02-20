@@ -7,30 +7,40 @@ import { MockUniswapV3Deployer } from "./mock/MockUniswapV3Deployer.t.sol";
 import { Test } from "forge-std/src/Test.sol";
 import { PartyTokenAdminERC721 } from "src/PartyTokenAdminERC721.sol";
 import { PartyLPLocker } from "src/PartyLPLocker.sol";
-import { MockUNCX } from "./mock/MockUNCX.t.sol";
 import { PartyERC20 } from "src/PartyERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
+    event Locked(
+        uint256 indexed tokenId,
+        IERC20 indexed token,
+        uint256 indexed partyTokenAdminId,
+        PartyLPLocker.AdditionalFeeRecipient[] additionalFeeRecipients
+    );
+    event Collected(
+        uint256 indexed tokenId,
+        uint256 amount0,
+        uint256 amount1,
+        PartyLPLocker.AdditionalFeeRecipient[] additionalFeeRecipients
+    );
+
     MockUniswapV3Deployer.UniswapV3Deployment uniswapV3Deployment;
     PartyTokenAdminERC721 adminToken;
     PartyLPLocker locker;
-    MockUNCX uncx;
-
-    uint256 lpTokenId;
     PartyERC20 token;
 
     IERC20 token0;
     IERC20 token1;
 
+    uint256 lpTokenId;
+
     function setUp() external {
         uniswapV3Deployment = _deployUniswapV3();
         adminToken = new PartyTokenAdminERC721("Party Admin", "PA", address(this));
         adminToken.setIsMinter(address(this), true);
-        uncx = new MockUNCX();
         locker = new PartyLPLocker(
-            address(this), INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx
+            address(this), INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken
         );
         token = PartyERC20(Clones.clone(address(new PartyERC20(adminToken))));
         token.initialize("Party Token", "PT", "description", 1 ether, address(this), address(this), 0);
@@ -59,16 +69,6 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
             INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).mint{ value: 0.1 ether }(mintParams);
     }
 
-    function test_constructor() external {
-        locker = new PartyLPLocker(
-            address(this), INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER), adminToken, uncx
-        );
-
-        assertEq(address(locker.POSITION_MANAGER()), uniswapV3Deployment.POSITION_MANAGER);
-        assertEq(address(locker.PARTY_TOKEN_ADMIN()), address(adminToken));
-        assertEq(address(locker.UNCX()), address(uncx));
-    }
-
     function test_onERC721Received_lockLp(address additionalFeeRecipient) external {
         vm.assume(additionalFeeRecipient != address(this));
         vm.assume(additionalFeeRecipient != address(0));
@@ -85,14 +85,21 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         PartyLPLocker.LPInfo memory lpInfo =
             PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
-        uint96 flatLockFee = locker.getFlatLockFee();
-        vm.deal(address(locker), flatLockFee);
+        vm.expectEmit(true, true, true, true);
+        emit Locked(lpTokenId, token, adminTokenId, additionalFeeRecipients);
 
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
-            address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, 0, token)
         );
 
-        vm.assume(INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).ownerOf(lpTokenId) == address(uncx));
+        (address storedToken0, address storedToken1, uint256 partyTokenAdminId) = locker.lockStorages(lpTokenId);
+        assertEq(storedToken0, address(token0));
+        assertEq(storedToken1, address(token1));
+        assertEq(partyTokenAdminId, adminTokenId);
+        assertEq(additionalFeeRecipients.length, 1);
+        assertEq(additionalFeeRecipients[0].recipient, additionalFeeRecipient);
+        assertEq(additionalFeeRecipients[0].percentageBps, 1000);
+        assertEq(uint8(additionalFeeRecipients[0].feeType), uint8(PartyLPLocker.FeeType.Token0));
     }
 
     function test_onERC721Received_invalidFeeBps_token0() external {
@@ -176,56 +183,55 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         locker.onERC721Received(address(0), address(0), 0, "");
     }
 
-    function test_collect_feeDistributed(address additionalFeeRecipient, address adminNftHolder) external {
-        address lpAddress =
-            IUniswapV3Factory(uniswapV3Deployment.FACTORY).getPool(uniswapV3Deployment.WETH, address(token), 10_000);
-        vm.assume(additionalFeeRecipient != address(this));
-        vm.assume(additionalFeeRecipient != address(0));
-        vm.assume(adminNftHolder != address(this));
-        vm.assume(adminNftHolder != address(0));
-        vm.assume(adminNftHolder != additionalFeeRecipient);
-        vm.assume(adminNftHolder != address(locker));
-        vm.assume(additionalFeeRecipient != address(locker));
-        vm.assume(adminNftHolder != lpAddress);
-        vm.assume(additionalFeeRecipient != lpAddress);
+    function test_collect_feeDistributed() external {
+        address feeRecipient1 = vm.createWallet("FeeRecipient1").addr;
+        address feeRecipient2 = vm.createWallet("FeeRecipient2").addr;
+        address adminNftHolder = vm.createWallet("AdminNftHolder").addr;
 
-        uint256 adminTokenId = adminToken.mint("Party Token", "image", adminNftHolder, address(1));
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", adminNftHolder, address(token));
 
         PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
-            new PartyLPLocker.AdditionalFeeRecipient[](1);
+            new PartyLPLocker.AdditionalFeeRecipient[](2);
         additionalFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
-            recipient: additionalFeeRecipient,
-            percentageBps: 1000,
+            recipient: feeRecipient1,
+            percentageBps: 2000,
             feeType: PartyLPLocker.FeeType.Both
+        });
+        additionalFeeRecipients[1] = PartyLPLocker.AdditionalFeeRecipient({
+            recipient: feeRecipient2,
+            percentageBps: 7000,
+            feeType: PartyLPLocker.FeeType.Token0
         });
         PartyLPLocker.LPInfo memory lpInfo =
             PartyLPLocker.LPInfo({ partyTokenAdminId: adminTokenId, additionalFeeRecipients: additionalFeeRecipients });
 
-        uint96 flatLockFee = locker.getFlatLockFee();
-        vm.deal(address(locker), flatLockFee);
-
         INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
-            address(this), address(locker), lpTokenId, abi.encode(lpInfo, flatLockFee)
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, 0, token)
         );
 
-        (uint256 amount0, uint256 amount1) = locker.collect(lpTokenId + 1);
-        assertEq(
-            token0.balanceOf(adminToken.ownerOf(adminTokenId)),
-            amount0 - 1000 * amount0 / 10_000 /* subtract additional fee */
-        );
-        assertEq(token1.balanceOf(adminToken.ownerOf(adminTokenId)), amount1 - 1000 * amount1 / 10_000);
+        (uint256 collectedAmount0, uint256 collectedAmount1) = locker.collect(lpTokenId);
+
+        assertEq(collectedAmount0, 0.01 ether);
+        assertEq(collectedAmount1, 0.01 ether);
+
+        assertEq(token0.balanceOf(feeRecipient1), 0.002 ether);
+        assertEq(token1.balanceOf(feeRecipient1), 0.002 ether);
+        assertEq(token0.balanceOf(feeRecipient2), 0.007 ether);
+        assertEq(token0.balanceOf(adminNftHolder), 0.001 ether);
+        assertEq(token1.balanceOf(adminNftHolder), 0.008 ether);
     }
 
     function test_withdrawEth_nonNull() external {
-        address(locker).call{ value: 1 ether }("");
+        address recipient = vm.createWallet("Recipient").addr;
+        vm.deal(address(locker), 1 ether);
 
-        uint256 beforeBalance = address(this).balance;
+        uint256 beforeBalance = recipient.balance;
         assertEq(address(locker).balance, 1 ether);
 
-        locker.sweep(address(this));
+        locker.sweep(recipient);
 
         assertEq(address(locker).balance, 0);
-        assertEq(address(this).balance, beforeBalance + 1 ether);
+        assertEq(recipient.balance, beforeBalance + 1 ether);
     }
 
     function test_withdrawEth_null() external {
@@ -233,21 +239,57 @@ contract PartyLPLockerTest is MockUniswapV3Deployer, Test {
         locker.sweep(address(0));
     }
 
+    function test_getAdditionalFeeRecipients() external {
+        uint256 adminTokenId = adminToken.mint("Party Token", "image", address(this), address(1));
+
+        address feeRecipient1 = vm.createWallet("FeeRecipient1").addr;
+        address feeRecipient2 = vm.createWallet("FeeRecipient2").addr;
+        address feeRecipient3 = vm.createWallet("FeeRecipient3").addr;
+
+        PartyLPLocker.LPInfo memory lpInfo;
+        {
+            PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+                new PartyLPLocker.AdditionalFeeRecipient[](3);
+            additionalFeeRecipients[0] = PartyLPLocker.AdditionalFeeRecipient({
+                recipient: feeRecipient1,
+                percentageBps: 2000,
+                feeType: PartyLPLocker.FeeType.Both
+            });
+            additionalFeeRecipients[1] = PartyLPLocker.AdditionalFeeRecipient({
+                recipient: feeRecipient2,
+                percentageBps: 7000,
+                feeType: PartyLPLocker.FeeType.Token0
+            });
+            additionalFeeRecipients[2] = PartyLPLocker.AdditionalFeeRecipient({
+                recipient: feeRecipient3,
+                percentageBps: 1000,
+                feeType: PartyLPLocker.FeeType.Token1
+            });
+            lpInfo = PartyLPLocker.LPInfo({
+                partyTokenAdminId: adminTokenId,
+                additionalFeeRecipients: additionalFeeRecipients
+            });
+        }
+
+        INonfungiblePositionManager(uniswapV3Deployment.POSITION_MANAGER).safeTransferFrom(
+            address(this), address(locker), lpTokenId, abi.encode(lpInfo, 0, token)
+        );
+
+        PartyLPLocker.AdditionalFeeRecipient[] memory additionalFeeRecipients =
+            locker.getAdditionalFeeRecipients(lpTokenId);
+        assertEq(additionalFeeRecipients.length, 3);
+        assertEq(additionalFeeRecipients[0].recipient, feeRecipient1);
+        assertEq(additionalFeeRecipients[1].recipient, feeRecipient2);
+        assertEq(additionalFeeRecipients[2].recipient, feeRecipient3);
+        assertEq(additionalFeeRecipients[0].percentageBps, 2000);
+        assertEq(additionalFeeRecipients[1].percentageBps, 7000);
+        assertEq(additionalFeeRecipients[2].percentageBps, 1000);
+        assertEq(uint8(additionalFeeRecipients[0].feeType), uint8(PartyLPLocker.FeeType.Both));
+        assertEq(uint8(additionalFeeRecipients[1].feeType), uint8(PartyLPLocker.FeeType.Token0));
+        assertEq(uint8(additionalFeeRecipients[2].feeType), uint8(PartyLPLocker.FeeType.Token1));
+    }
+
     function test_VERSION() external view {
-        assertEq(locker.VERSION(), "1.0.0");
+        assertEq(locker.VERSION(), "1.0.1");
     }
-
-    function test_setUncxCountryCode_setsStorage() external {
-        assertEq(locker.uncxCountryCode(), 0);
-        locker.setUncxCountryCode(1);
-        assertEq(locker.uncxCountryCode(), 1);
-    }
-
-    function test_setUncxFeeName_setsStorage() external {
-        assertEq(locker.uncxFeeName(), "LVP");
-        locker.setUncxFeeName("test");
-        assertEq(locker.uncxFeeName(), "test");
-    }
-
-    receive() external payable { }
 }
